@@ -324,18 +324,44 @@ class WebGame:
                 "shown": r.get("shown", {}), "won": r.get("won", {}),
                 "names": {str(x): self.ft.name(x) for x in e["seats"]}}
 
-    def build_tree(self, e):
+    def chart(self):
+        """The preflop chart (the desktop's Chart window): what the bots' strategy does with
+        every hand at each preflop decision of this hand, your current one included."""
+        h = self.hand
+        if h is not None and h.get("result") is None:
+            s = self.decision
+            pending = s if (s is not None and s.street == "preflop") else None
+            e = {"no": h["no"], "trace": list(self.trace), "meta": list(self.meta),
+                 "phys_of": dict(self.phys_of), "graded": list(h["graded"]), "result": None,
+                 "hole": self.hole()}
+            nodes = self.build_tree(e, pending=pending, preflop_only=True)
+        elif self.history:
+            e = self.history[-1]
+            if e["tree"] is None:
+                e["tree"] = self.build_tree(e)
+            nodes = [n for n in e["tree"] if n["street"] == "preflop"]
+        else:
+            return {"nodes": []}
+        return {"nodes": [n for n in nodes if n["grid"]], "hole": e["hole"],
+                "live": h is not None and h.get("result") is None}
+
+    def build_tree(self, e, pending=None, preflop_only=False):
         if self.reviewer is None:
             self.reviewer = T.Analyst()
         an = self.reviewer
         an.new_hand(e["no"])
         shown = (e["result"] or {}).get("shown", {})
         out, k = [], 0
-        for s, mv in e["trace"]:
+        steps = list(e["trace"]) + ([(pending, None)] if pending is not None else [])
+        for s, mv in steps:
+            if preflop_only and s.street != "preflop":
+                break
             phys = e["phys_of"][s.my_seat]
             hero = phys == 0
             meta = None
-            if hero:
+            if hero and mv is None:          # your decision now: the bot's play, nothing chosen
+                meta = {"adv": self.advisor_move(s), "graded": None}
+            elif hero:
                 meta = e["meta"][k] if k < len(e["meta"]) else None
                 k += 1
             try:
@@ -343,6 +369,8 @@ class WebGame:
             except Exception:
                 node = None
             if not node:
+                if mv is None:
+                    continue
                 if hero or T.describe(mv, s) != "Fold":   # (others' folds aren't drawn)
                     out.append(self.plain_node(s, mv, phys, hero))
                 continue
@@ -350,7 +378,7 @@ class WebGame:
             opts = [{"label": lab or T.key_label(key), "pct": round(pct, 1), "col": col,
                      "chosen": key == node["chosen"], "bot": hero and key == node["bot"]}
                     for key, lab, pct, col in node["options"]]
-            if node["chosen"] not in keys:      # your move isn't in the strategy at all
+            if mv is not None and node["chosen"] not in keys:   # your move: not in the strategy
                 opts.append({"label": T.describe(mv, s), "pct": 0.0, "col": "#6b7385",
                              "chosen": True, "bot": False})
             grid = None
@@ -361,9 +389,10 @@ class WebGame:
             item = {"street": s.street, "board": list(s.board), "seat": phys, "hero": hero,
                     "pos": s.position, "name": "You" if hero else self.ft.name(phys),
                     "pot": bbs(s.pot), "range": round(node["range"], 1), "options": opts,
-                    "did": T.describe(mv, s), "grid": grid, "auto": hero and not meta,
+                    "did": T.describe(mv, s) if mv is not None else None, "grid": grid,
+                    "auto": hero and not meta, "now": mv is None, "spot": node.get("spot"),
                     "cards": (list(s.hole) if hero else shown.get(str(phys)))}
-            if meta is not None:
+            if meta is not None and meta["graded"] is not None:
                 g = e["graded"][meta["graded"]]
                 item.update(caption=g["caption"], colour=g["colour"], hint=g["hint"],
                             icm=g.get("icm"), icm_right=g.get("icm_right"))
@@ -544,6 +573,8 @@ def handle(msg):
         out = g.act(m["move"])
     elif cmd == "coach":
         out = g.coach(bool(m.get("deep")))
+    elif cmd == "chart":
+        out = g.chart()
     elif cmd == "review":
         out = g.review(m.get("no"))
     elif cmd == "charts":

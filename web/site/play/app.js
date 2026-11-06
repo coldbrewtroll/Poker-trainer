@@ -451,9 +451,11 @@ async function newSession() {
 }
 
 // ---------------------------------------------------------------- sheets
-function openSheet(title, html) {
+function openSheet(title, html, cls = "") {
   $("sheettitle").textContent = title;
+  $("sheetcontent").className = cls;
   $("sheetcontent").innerHTML = html;
+  $("sheetcontent").scrollTop = 0;
   $("sheet").classList.remove("hidden");
 }
 function closeSheet() { $("sheet").classList.add("hidden"); }
@@ -464,20 +466,21 @@ function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<"
 
 async function openCoach(deep) {
   if (!V || !V.decision || busy) return;
-  openSheet("ICM Coach", `<p class="c-text">Thinking${deep ? " (the deep analysis takes a few seconds on a phone)" : ""}…</p>`);
+  openSheet("ICM Coach", `<p class="c-text">Thinking${deep ? " (the deep analysis takes a few seconds on a phone)" : ""}…</p>`, "coach");
   busy = true;
   try {
     const c = await call({ cmd: "coach", deep: !!deep });
-    let html = "";
+    let html = deep ? `<button class="deepbtn alt" id="quickbtn">← Quick view</button>` :
+      `<button class="deepbtn" id="deepbtn">Deeper analysis: opens, 3-bets, 4-bets</button>`;
     for (const l of c.lines) {
       const col = l.colour && !["#eceff4", "#8b93a3"].includes(l.colour) ? ` style="color:${l.colour}"` : l.colour === "#8b93a3" ? ` style="color:var(--dim)"` : "";
       const text = l.style === "title" ? l.text.replace(/^ICM Coach\s*\u00b7\s*/, "") : l.text;
       html += `<div class="c-${l.style}"${l.style === "head" ? "" : col}>${esc(text)}</div>`;
     }
-    if (!deep) html += `<button class="bigbtn" id="deepbtn">Deeper analysis: opens, 3-bets, 4-bets</button>`;
     $("sheetcontent").innerHTML = html;
-    const db = $("deepbtn");
+    const db = $("deepbtn"), qb = $("quickbtn");
     if (db) db.onclick = () => { busy = false; openCoach(true); };
+    if (qb) qb.onclick = () => { busy = false; openCoach(false); };
   } catch (e) { $("sheetcontent").innerHTML = "Couldn't build the coach: " + esc(e.message); }
   busy = false;
 }
@@ -576,6 +579,7 @@ function showOver() {
 $("btnMenu").onclick = openSettings;
 $("btnPays").onclick = openPays;
 $("btnCoach").onclick = () => openCoach(false);
+$("btnChart").onclick = () => openChart();
 $("btnHint").onclick = () => {
   settings.hint = !settings.hint;
   save();
@@ -606,7 +610,18 @@ async function start() {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  // A new version takes over in the background: offer a reload (never mid-hand by itself).
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (had && !document.getElementById("update")) {
+      const b = document.createElement("button");
+      b.id = "update";
+      b.textContent = "New version ready · tap to reload";
+      b.onclick = () => location.reload();
+      document.body.appendChild(b);
+    }
+  });
+  navigator.serviceWorker.register("sw.js").then((r) => r.update()).catch(() => {});
 }
 
 // ---------------------------------------------------------------- reviewing a hand
@@ -707,4 +722,55 @@ function handType(cs) {
   if (ia === ib) return a[0] + b[0];
   const [hi, lo] = ia < ib ? [a, b] : [b, a];
   return hi[0] + lo[0] + (a[1] === b[1] ? "s" : "o");
+}
+
+// ---------------------------------------------------------------- the preflop chart
+// (the desktop's Chart window: what the bots' strategy does with every hand, per decision)
+async function openChart(pick) {
+  if (busy) return;
+  openSheet("Preflop chart", `<p class="c-text">Working out the chart…</p>`);
+  busy = true;
+  let c;
+  try { c = await call({ cmd: "chart" }); }
+  catch (e) { busy = false; $("sheetcontent").innerHTML = `<p class="c-text">Couldn't build the chart: ${esc(e.message)}</p>`; return; }
+  busy = false;
+  if (!c.nodes || !c.nodes.length) {
+    $("sheetcontent").innerHTML = `<p class="c-text">No preflop decisions in this hand yet.</p>`;
+    return;
+  }
+  const hero = c.nodes.map((n, i) => (n.hero ? i : -1)).filter((i) => i >= 0);
+  showChart(c, pick !== undefined ? pick : hero.length ? hero[hero.length - 1] : c.nodes.length - 1);
+}
+
+function showChart(c, at) {
+  const n = c.nodes[at];
+  let h = `<div class="ch-sub">What the bot does with every hand${c.live ? "" : " (last hand)"}</div><div class="ch-nodes">` +
+    c.nodes.map((m, i) => `<button data-i="${i}" class="${i === at ? "on" : ""}">${m.hero ? "You" : esc(m.pos)} · ${esc((m.spot || "").split(" · ").pop())}${m.now ? " (now)" : ""}</button>`).join("") + `</div>`;
+  h += `<div class="ch-legend">` + n.options.filter((o) => o.pct > 0 || o.chosen).map((o) =>
+    `<span><i style="background:${o.col}"></i>${esc(o.label)} ${Math.round(o.pct)}%</span>`).join("") +
+    (n.range !== null ? `<span class="rg">range ${Math.round(n.range)}% of hands</span>` : "") + `</div>`;
+  const mine = n.hero && c.hole ? handType(c.hole) : n.cards ? handType(n.cards) : null;
+  h += `<div class="rv-grid big">`;
+  for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+    const t = i === j ? RANKS[i] + RANKS[j] : i < j ? RANKS[i] + RANKS[j] + "s" : RANKS[j] + RANKS[i] + "o";
+    const mix = n.grid[t];
+    let bg = "#13161c";
+    if (mix && mix.length) {
+      let a = 0;
+      const stops = mix.map(([k, f]) => { const b = a; a += f * 100; return `${n.options[k].col} ${b}% ${a}%`; });
+      if (a < 99.5) stops.push(`#13161c ${a}% 100%`);
+      bg = `linear-gradient(90deg, ${stops.join(", ")})`;
+    }
+    h += `<span class="${t === mine ? "mine" : ""}${mix ? "" : " out"}" style="background:${bg}">${t}</span>`;
+  }
+  h += `</div><div class="c-text" style="color:var(--dim);margin-top:8px">${esc(n.spot || "")} · pot ${fmt(n.pot)} bb</div>`;
+  if (mine) {
+    const mix = (n.grid[mine] || []).slice().sort((a, b) => b[1] - a[1])
+      .map(([k, f]) => `${n.options[k].label} ${Math.round(f * 100)}%`).join(", ");
+    h += `<div class="ch-mine">${n.hero ? "Your hand" : esc(n.name) + "'s hand"} ${mine}: the bot plays ${mix || "–"}</div>`;
+  }
+  if (n.did) h += `<div class="ch-did">${n.hero ? "You played" : esc(n.pos) + " played"}: ${esc(n.did)}</div>`;
+  else if (n.now) h += `<div class="ch-did" style="color:var(--dim)">Your decision now: close the chart to act.</div>`;
+  $("sheetcontent").innerHTML = h;
+  for (const b of document.querySelectorAll(".ch-nodes button")) b.onclick = () => showChart(c, Number(b.dataset.i));
 }
