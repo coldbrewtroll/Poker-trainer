@@ -322,6 +322,7 @@ class WebGame:
         return {"hands": listing, "no": e["no"], "tree": e["tree"], "hole": e["hole"],
                 "start": e["start"], "level": e["level"], "board": r.get("board", []),
                 "shown": r.get("shown", {}), "won": r.get("won", {}),
+                "folded_to": r.get("folded_to", {}),
                 "names": {str(x): self.ft.name(x) for x in e["seats"]}}
 
     def chart(self):
@@ -350,7 +351,8 @@ class WebGame:
             self.reviewer = T.Analyst()
         an = self.reviewer
         an.new_hand(e["no"])
-        shown = (e["result"] or {}).get("shown", {})
+        shown = dict((e["result"] or {}).get("folded_to", {}))
+        shown.update((e["result"] or {}).get("shown", {}))
         out, k = [], 0
         steps = list(e["trace"]) + ([(pending, None)] if pending is not None else [])
         for s, mv in steps:
@@ -428,10 +430,32 @@ class WebGame:
         if not shown:
             board = board[:dealt]
         return {"board": board, "shown": {str(k): v for k, v in shown.items()},
+                "folded_to": {str(k): v for k, v in self.folded_to(shown).items()},
                 "won": {str(seats[k]): bbs(v) for k, v in enumerate(res)},
                 "runout": runout,
                 "busts": [{"seat": x, "name": self.ft.name(x), "place": p, "prize": z}
                           for x, p, z in info["busts"]]}
+
+    def folded_to(self, shown):
+        """When you folded to a bet or raise: that player's cards (shown to you after the
+        hand). Not for hands folded for you (Skip folds), nor a fold to just the blinds."""
+        h = self.hand
+        out, k = {}, 0
+        for s, mv in self.trace:
+            if self.phys_of[s.my_seat] != 0:
+                continue
+            auto = k >= len(self.meta) or self.meta[k] is None
+            k += 1
+            if mv[0] != "fold" or not s.to_call or auto:
+                continue
+            raises = [seat for st, seat, a, _ in s.history if st == s.street and a == "raise"]
+            if not raises:
+                continue
+            x = raises[-1]
+            phys = self.phys_of[x]
+            if phys not in shown:
+                out[phys] = [card_name(h["deck"][2 * x]), card_name(h["deck"][2 * x + 1])]
+        return out
 
     def view(self):
         ft = self.ft

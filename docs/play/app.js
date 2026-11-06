@@ -185,7 +185,7 @@ function drawSeats() {
     if (st.cards && x !== 0) {
       const hole = document.createElement("div");
       hole.className = "hole";
-      st.cards.forEach((c) => hole.appendChild(cardEl(c, "small" + (st.folded ? " dim" : ""))));
+      st.cards.forEach((c) => hole.appendChild(cardEl(c, "small" + (st.folded && !st.revealed ? " dim" : ""))));
       el.appendChild(hole);
     } else if (inHand && !st.folded && x !== 0 && !(h.result)) {
       const hole = document.createElement("div");
@@ -310,6 +310,14 @@ async function showResult() {
   if (put.length > 1) pot = total - (put[0] - put[1]);
   for (const x in seat) { seat[x].bet = 0; }
   for (const [x, cards] of Object.entries(r.shown)) { if (seat[x]) seat[x].cards = cards; }
+  // you folded to their bet: their cards, face up
+  for (const [x, cards] of Object.entries(r.folded_to || {})) {
+    if (!seat[x]) continue;
+    seat[x].cards = cards;
+    seat[x].revealed = true;
+    const who = (V.players[x] || {}).name || "They";
+    toast(`${who} had ${cards.map((c) => (c[0] === "T" ? "10" : c[0]) + SUITS[c[1]]).join(" ")}`, 3500);
+  }
   const ro = r.runout;
   const setPct = (k) => {
     const eq = ro && ro.eq[String(k)];
@@ -674,7 +682,10 @@ function reviewHTML(r) {
   h += `<div class="rv-result">` + Object.entries(r.won).filter(([, v]) => v).sort((a, b) => b[1] - a[1]).map(([x, v]) =>
     `<div class="row${x === "0" ? " me" : ""}"><span>${esc(x === "0" ? "You" : r.names[x] || "Seat " + x)} ` +
     `${(r.shown[x] || []).map((c) => cardHTML(c, "small")).join("")}</span><span class="${v > 0 ? "win" : "lose"}">${signed(v)} bb</span></div>`).join("") +
-    (shown.length ? "" : `<p class="c-text" style="color:var(--dim)">No showdown.</p>`) + `</div></div>`;
+    (shown.length ? "" : `<p class="c-text" style="color:var(--dim)">No showdown.</p>`) +
+    Object.entries(r.folded_to || {}).map(([x, cs]) =>
+      `<div class="row"><span>${esc(r.names[x] || "Seat " + x)} ${cs.map((c) => cardHTML(c, "small")).join("")}</span>` +
+      `<span style="color:var(--dim)">you folded to this</span></div>`).join("") + `</div></div>`;
   return h;
 }
 
