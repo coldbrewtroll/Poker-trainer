@@ -1,0 +1,5 @@
+3BP_BB_vs_BTN at 60 bb: BTN opens 2.01, BB 3-bets 6.44, BTN calls
+Starting pot: 14.38 bb   Effective stack: 53.56 bb
+OOP: BB (15.0% of hands)   IP: BTN (38.6% of hands)
+In PioSOLVER: paste OOP_BB.txt as the OOP range and IP_BTN.txt as the IP range,
+set the pot to 14.38 and the effective stack to 53.56 (or x100 if you use chips).

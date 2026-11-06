@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+solver/mccfr_out/
+.ranges_cache.pickle
+sounds/
+leak_history.json

@@ -1,0 +1,5 @@
+SRP_HJ_vs_CO at 40 bb: HJ opens 2.01, CO calls
+Starting pot: 6.53 bb   Effective stack: 37.98 bb
+OOP: HJ (31.7% of hands)   IP: CO (12.5% of hands)
+In PioSOLVER: paste OOP_HJ.txt as the OOP range and IP_CO.txt as the IP range,
+set the pot to 6.53 and the effective stack to 37.98 (or x100 if you use chips).

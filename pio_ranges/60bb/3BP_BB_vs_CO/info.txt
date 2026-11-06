@@ -1,0 +1,5 @@
+3BP_BB_vs_CO at 60 bb: CO opens 2.01, BB 3-bets 6.44, CO calls
+Starting pot: 14.38 bb   Effective stack: 53.56 bb
+OOP: BB (11.0% of hands)   IP: CO (30.4% of hands)
+In PioSOLVER: paste OOP_BB.txt as the OOP range and IP_CO.txt as the IP range,
+set the pot to 14.38 and the effective stack to 53.56 (or x100 if you use chips).

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Final Table Trainer</title>
+<meta name="description" content="Practice No-Limit Hold'em final tables against bots that play solver ranges, with an ICM coach. Free, in the browser or on your PC.">
+<link rel="icon" href="play/icon-192.png">
+<link rel="apple-touch-icon" href="play/icon-180.png">
+<style>
+  :root { --bg: #0f1115; --panel: #171a21; --card: #222733; --text: #eceff4; --dim: #8b93a3;
+          --accent: #7c6cf0; --gold: #f2c14e; --green: #1f7a55; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5;
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 56px 0 30px; text-align: center;
+           background: radial-gradient(ellipse at 50% -10%, #1f7a5544, transparent 60%); }
+  .chip { width: 72px; height: 72px; }
+  h1 { font-size: clamp(30px, 6vw, 46px); margin: 14px 0 8px; letter-spacing: -.5px; }
+  .lead { color: var(--dim); font-size: 18px; max-width: 600px; margin: 0 auto 26px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 14px 26px; border-radius: 14px; font-weight: 700; font-size: 16px;
+         text-decoration: none; color: #fff; background: var(--accent); }
+  .btn.alt { background: var(--card); color: var(--text); }
+  .note { color: var(--dim); font-size: 13px; margin-top: 12px; }
+  section { padding: 26px 0; }
+  h2 { font-size: 22px; margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid #222733; border-radius: 16px; padding: 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; color: var(--dim); font-size: 14.5px; }
+  .card .k { color: var(--gold); font-weight: 700; }
+  ol { padding-left: 22px; color: var(--dim); } ol b { color: var(--text); }
+  code { background: var(--card); padding: 2px 6px; border-radius: 6px; font-size: 14px; }
+  footer { color: #5b6270; font-size: 13px; padding: 30px 0 50px; text-align: center; }
+  a { color: #a99cff; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <svg class="chip" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="46" fill="#7c6cf0"/>
+      <g fill="#f7f8fa"><circle cx="50" cy="10" r="6"/><circle cx="90" cy="50" r="6"/><circle cx="50" cy="90" r="6"/><circle cx="10" cy="50" r="6"/>
+        <circle cx="78" cy="22" r="6"/><circle cx="78" cy="78" r="6"/><circle cx="22" cy="78" r="6"/><circle cx="22" cy="22" r="6"/></g>
+      <circle cx="50" cy="50" r="30" fill="#135c40" stroke="#f2c14e" stroke-width="2"/>
+      <text x="50" y="59" text-anchor="middle" font-size="26" font-weight="800" fill="#f2c14e" font-family="sans-serif">FT</text>
+    </svg>
+    <h1>Final Table Trainer</h1>
+    <p class="lead">Play WSOP-Circuit-style final tables against bots that play real solver ranges, with an ICM coach that explains every decision in prize money.</p>
+    <div class="cta">
+      <a class="btn" href="play/">Play in your browser</a>
+      <a class="btn alt" href="https://github.com/coldbrewtroll/poker-trainer/archive/refs/heads/main.zip">Download for Windows / Mac</a>
+    </div>
+    <p class="note">Free. Works on iPhone and Android: open <b>Play</b> in Safari, then Share &rarr; Add to Home Screen to keep it like an app.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>What's in it</h2>
+    <div class="grid">
+      <div class="card"><h3>250 final tables</h3><p>Preset final tables with every kind of stack spread, WSOP Circuit payouts and blinds. Play until you bust or win.</p></div>
+      <div class="card"><h3>Solver-range bots</h3><p>Opponents play MonkerSolver ranges from 15 to 60 bb, with the final table's ICM rules for all-ins.</p></div>
+      <div class="card"><h3>ICM Coach</h3><p>Your equity, the pay jumps, risk premiums, jam / call / fold in dollars, and <span class="k">exploits</span>: what changes against players who call or jam too wide or too tight.</p></div>
+      <div class="card"><h3>Graded decisions</h3><p>Every decision gets a grade, from <span class="k">Elite pro</span> to <span class="k">Fish</span>, and every all-in is graded in prize money.</p></div>
+      <div class="card"><h3>TV-style table</h3><p>Player avatars, a broadcast-style board with the pot, and win % on every all-in run-out.</p></div>
+      <div class="card"><h3>Fast</h3><p>Turbo speed, and <span class="k">Skip folds</span> folds the hands you'd never play, so you spend your time on real decisions.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The full trainer on your computer</h2>
+    <p style="color:var(--dim)">The desktop version adds Play mode at any depth, preflop drills, Pio flop sims, the hand tree, the leak tracker and the ICM study tools.</p>
+    <ol>
+      <li>Install <b>Python 3.12 or newer</b> from <a href="https://www.python.org/downloads/">python.org</a> (Windows: tick <b>Add python.exe to PATH</b>).</li>
+      <li><a href="https://github.com/coldbrewtroll/poker-trainer/archive/refs/heads/main.zip">Download the trainer</a> and unzip it.</li>
+      <li>Windows: double-click <b>Poker Trainer.bat</b>. Mac: open Terminal in the folder and run <code>python3 trainer8.py</code>.</li>
+    </ol>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Source: <a href="https://github.com/coldbrewtroll/poker-trainer">github.com/coldbrewtroll/poker-trainer</a> &middot;
+    Avatars: Open Peeps by Pablo Stanley (CC0) &middot; For practice and study only.
+  </div>
+</footer>
+</body>
+</html>

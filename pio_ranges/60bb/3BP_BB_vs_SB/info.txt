@@ -1,0 +1,5 @@
+3BP_BB_vs_SB at 60 bb: SB opens 1.87, BB 3-bets 4.29, SB calls
+Starting pot: 9.57 bb   Effective stack: 55.71 bb
+OOP: SB (5.6% of hands)   IP: BB (14.2% of hands)
+In PioSOLVER: paste OOP_SB.txt as the OOP range and IP_BB.txt as the IP range,
+set the pot to 9.57 and the effective stack to 55.71 (or x100 if you use chips).

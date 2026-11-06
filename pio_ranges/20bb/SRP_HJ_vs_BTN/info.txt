@@ -1,0 +1,5 @@
+SRP_HJ_vs_BTN at 20 bb: HJ opens 2.01, BTN calls
+Starting pot: 6.53 bb   Effective stack: 17.98 bb
+OOP: HJ (25.7% of hands)   IP: BTN (6.6% of hands)
+In PioSOLVER: paste OOP_HJ.txt as the OOP range and IP_BTN.txt as the IP range,
+set the pot to 6.53 and the effective stack to 17.98 (or x100 if you use chips).

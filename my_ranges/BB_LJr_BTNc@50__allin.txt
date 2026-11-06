@@ -1,0 +1,1 @@
+AKo,AKs:0.963,AQo,JTs,TT,JJ:0.997,KTs,QJs:0.358,KJs

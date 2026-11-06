@@ -1,0 +1,5 @@
+SRP_HJ_vs_BB at 30 bb: HJ opens 2.05, BB calls
+Starting pot: 5.60 bb   Effective stack: 27.95 bb
+OOP: BB (66.7% of hands)   IP: HJ (30.2% of hands)
+In PioSOLVER: paste OOP_BB.txt as the OOP range and IP_HJ.txt as the IP range,
+set the pot to 5.60 and the effective stack to 27.95 (or x100 if you use chips).

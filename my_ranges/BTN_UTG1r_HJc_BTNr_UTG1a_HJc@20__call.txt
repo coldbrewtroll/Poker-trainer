@@ -1,0 +1,1 @@
+ATs:0.001,KK,AA,AJs:0.003,AKs

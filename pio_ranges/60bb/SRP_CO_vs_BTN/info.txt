@@ -1,0 +1,5 @@
+SRP_CO_vs_BTN at 60 bb: CO opens 2.01, BTN calls
+Starting pot: 6.53 bb   Effective stack: 57.98 bb
+OOP: CO (39.7% of hands)   IP: BTN (10.9% of hands)
+In PioSOLVER: paste OOP_CO.txt as the OOP range and IP_BTN.txt as the IP range,
+set the pot to 6.53 and the effective stack to 57.98 (or x100 if you use chips).

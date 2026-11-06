@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FT Trainer">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Final Table Trainer</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <button id="btnMenu" class="iconbtn" aria-label="Settings">&#9776;</button>
+    <div id="title"><div id="t1">Final table</div><div id="t2"></div></div>
+    <button id="btnPays" class="pill">Payouts</button>
+  </header>
+
+  <main id="tablewrap">
+    <div id="table">
+      <div id="felt"></div>
+      <div id="board">
+        <div id="cards"></div>
+        <div id="potbar"><span>POT</span><b id="pot"></b></div>
+      </div>
+      <div id="seats"></div>
+      <div id="center">
+        <div id="caption" class="hidden"></div>
+        <div id="toast" class="hidden"></div>
+      </div>
+    </div>
+  </main>
+
+  <section id="bar">
+    <div id="herorow">
+      <button id="btnHint" class="pill">Hint</button>
+      <div id="hero"></div>
+      <button id="btnCoach" class="pill gold">ICM<br>Coach</button>
+    </div>
+    <div id="actions"></div>
+  </section>
+</div>
+
+<div id="loading">
+  <div class="logo">&#9824;&#65038;</div>
+  <h1>Final Table Trainer</h1>
+  <p id="loadtext">Loading…</p>
+  <div class="spinner"></div>
+  <p class="small">The first visit downloads the poker engine (about 15 MB), after that it starts in seconds.</p>
+</div>
+
+<div id="sheet" class="hidden">
+  <div class="sheetbody">
+    <div class="sheethead"><b id="sheettitle"></b><button id="sheetclose" class="iconbtn">&#10005;</button></div>
+    <div id="sheetcontent"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

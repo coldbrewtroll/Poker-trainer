@@ -1,0 +1,1 @@
+AKs,JJ,TT:0.001,KK,AA,QQ

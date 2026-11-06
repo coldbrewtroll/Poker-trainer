@@ -1,0 +1,5 @@
+SRP_UTG1_vs_BB at 30 bb: UTG1 opens 2.05, BB calls
+Starting pot: 5.60 bb   Effective stack: 27.95 bb
+OOP: BB (65.1% of hands)   IP: UTG1 (22.8% of hands)
+In PioSOLVER: paste OOP_BB.txt as the OOP range and IP_UTG1.txt as the IP range,
+set the pot to 5.60 and the effective stack to 27.95 (or x100 if you use chips).
