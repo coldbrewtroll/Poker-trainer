@@ -50,27 +50,20 @@ def compact(weights):
     """A 169-hand range as standard notation (22+, A2s+, KTo+ ...): hands at 50%+."""
     names, idx = I.exact()[0], I.exact()[1]
     on = {h for h in names if weights[idx[h]] >= 0.5}
-    parts = []
-    pairs = [r + r for r in RANKS]
-    run = [p for p in pairs if p in on]
-    # pairs: one run from the top down, or listed
+    out = []
+    pairs = [r + r for r in RANKS]          # AA, KK, ... 22
+    # pairs: runs, "77+" when a run reaches AA, "99-55" in between, single pairs alone
     i = 0
     while i < len(pairs):
         if pairs[i] in on:
             j = i
             while j + 1 < len(pairs) and pairs[j + 1] in on:
                 j += 1
-            if j == len(pairs) - 1 and i > 0:
-                parts.append(pairs[i] [0] * 2 + "+" if False else f"{pairs[j]}+" if False else
-                             f"{pairs[j][0]}{pairs[j][0]}+")
-            parts.append(None)
-            parts.pop()
-            parts.append(f"{pairs[j]}+" if j == len(pairs) - 1 and False else
-                         (f"{pairs[j]}-{pairs[i]}" if i != j else pairs[i]))
+            out.append(f"{pairs[j]}+" if i == 0 and j > 0 else
+                       f"{pairs[j]}-{pairs[i]}" if i != j else pairs[i])
             i = j + 1
         else:
             i += 1
-    out = [p for p in parts if p]
     for suit in ("s", "o"):
         for a in range(len(RANKS) - 1):
             hi = RANKS[a]
@@ -98,12 +91,73 @@ def compact(weights):
                     k = m + 1
                 else:
                     k += 1
-    del run
     return ", ".join(out) or "(none)"
 
 
 def share(weights):
     return 100 * I._share_w(weights)
+
+
+# Small blind vs big blind with limps and a 3 bb raise (the trainer's traps): (title,
+# stacks in position order with the big blind last)
+SB_SPOTS = [
+    ("4 left: SB 9.9 bb vs a 71 bb big blind (the hand you asked about)",
+     [52.5, 10.38, 9.88, 71.25]),
+    ("8 left: SB 10 bb vs BB 10.25 bb", [32, 26, 22, 19, 16, 13, 10, 10.25]),
+    ("4 left: SB 11 bb vs BB 20 bb", [30, 25, 11, 20]),
+    ("3 left: SB 10 bb vs BB 15 bb", [20, 10, 15]),
+    ("Heads-up: 11 bb each", [11, 11]),
+]
+SB_HANDS = ["AA", "KK", "QQ", "TT", "88", "AKs", "AKo", "AQo", "A5o", "K9o", "Q7o", "J4s"]
+
+
+def sb_section(pays):
+    names = {"fold": "fold", "limp": "limp", "raise": f"raise {I.SB_RAISE_TO:g}", "jam": "jam"}
+    print("## Small blind vs big blind: limps and the 3 bb raise (traps)\n")
+    print("For these, set the tree to: **small blind**: fold, limp, raise to "
+          f"{I.SB_RAISE_TO:g} bb, all-in; **big blind** facing a limp: check or all-in; facing "
+          f"the raise: fold or all-in; facing the all-in: call or fold; **small blind** facing "
+          f"the big blind's all-in: call or fold. Everyone before the small blind folds. "
+          f"Same blinds, ante and payouts as above.\n")
+    print(f"Postflop (a limped pot the big blind checks): the trainer doesn't play it out; it "
+          f"gives the small blind (out of position) {100 * I.SB_LIMP_REALIZE:.0f}% of its "
+          f"equity. In HRC pick the nearest postflop model (e.g. equity realization, or "
+          f"check down); expect the limp frequencies of weak hands to differ most.\n")
+    for k, (title, st) in enumerate(SB_SPOTS, 1):
+        n = len(st)
+        p = pays[:n]
+        pos = I.positions(n)
+        g = FT.solve_sb(st, p)
+        print(f"### S{k}. {title}\n")
+        print("Stacks: " + ", ".join(f"{pos[i]} {st[i]:g}" for i in range(n)) + "\n")
+        if g is None:
+            print("(Too short for limps or raises: push/fold.)\n")
+            continue
+        print("| Small blind | % of hands | Range |")
+        print("|---|---|---|")
+        for a in ("jam", "limp", "raise"):
+            if a == "raise" and not g["can_raise"]:
+                continue
+            print(f"| {names[a].capitalize()} | {share(g['ranges'][a]):.1f}% | "
+                  f"`{compact(g['ranges'][a])}` |")
+        fold = 100 - sum(share(g["ranges"][a]) for a in ("jam", "limp", "raise"))
+        print(f"| Fold | {fold:.1f}% | |\n")
+        bb = g["bb"]
+        print(f"Big blind: jams over a limp **{share(bb['vs_limp']):.1f}%** "
+              f"(`{compact(bb['vs_limp'])}`)" +
+              (f"; over the raise **{share(bb['vs_raise']):.1f}%** (`{compact(bb['vs_raise'])}`)"
+               if g["can_raise"] else "") +
+              f"; calls the jam **{share(bb['vs_jam']):.1f}%** (`{compact(bb['vs_jam'])}`).\n")
+        print("Each option's value compared with folding (ICM, $):\n")
+        print("| Hand | The trainer plays it | Limp | Raise 3 | Jam |")
+        print("|---|---|---|---|---|")
+        for h in SB_HANDS:
+            mix, ev = g["mix"][h], g["ev"][h]
+            plays = " / ".join(f"{names[a]} {100 * f:.0f}%" for a, f in
+                               sorted(mix.items(), key=lambda kv: -kv[1]) if f >= 0.05)
+            cell = lambda a: f"{ev[a] - ev['fold']:+,.0f}" if a in ev else "-"  # noqa: E731
+            print(f"| {h} | {plays} | {cell('limp')} | {cell('raise')} | {cell('jam')} |")
+        print()
 
 
 def main():
@@ -146,6 +200,7 @@ def main():
             print(f"**{pos[hero]} facing the jam** (calling vs folding, $): " + ", ".join(
                 f"{h} {cf['gain'][h]:+,.0f}" for h in hands) +
                 f"  \nCall range {100 * cf['share']:.1f}%, needs {100 * cf['need']:.1f}% equity\n")
+    sb_section(pays)
     print("## What can differ, and why\n")
     print("- **Equities** (the tables above) are plain Malmuth-Harville ICM: they should match "
           "HRC and ICMIZER to the dollar. Checked here against a brute-force version that lists "
