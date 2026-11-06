@@ -171,6 +171,18 @@ class Postflop8Mixin:
     xr_air = 0.05        # ... with no pair or draw but a backdoor flush draw (a bluff)
     xr_small = 3.0       # small check-raise: to this many times the bet
     xr_large_share = 0.5  # share of check-raises that are large (about pot)
+    # The preflop raiser's flop c-bet, heads-up (1: on). Two sizes: big for value (top pair
+    # or better), small with hands that are likely behind but have good turns and rivers
+    # (draws, overcards, backdoors); medium pairs mostly check back for showdown.
+    cbet_plan = 0
+    cbet_big = 0.75      # big size (share of the pot)
+    cbet_small = 0.33    # small size
+    cb_strong = 0.9      # sets / two pair / trips: big this often (else check, a trap)
+    cb_top = 0.8         # overpair / top pair: big this often
+    cb_draw = 0.75       # flush draw / straight draw: small this often
+    cb_equity = 0.6      # overcards or a backdoor flush draw: small this often
+    cb_medium = 0.2      # middle / bottom pair, underpair: small this often (else check)
+    cb_air = 0.3         # nothing at all: small this often
     cont_rule = 0        # 1: never fold any pair, gutshot or better draw, or backdoor
     cont_min_bb = 15.0   #    flush draw to the c-bet, from this effective stack (bb)
 
@@ -310,6 +322,22 @@ class Postflop8Mixin:
                 return True
         return False
 
+    def _cbet_class(self, hole, board):
+        """For the c-bet: "strong", "top" (overpair / top pair, any kicker), "medium" (a
+        weaker pair), "draw", "equity" (two overcards or a backdoor flush draw) or "air"."""
+        cls = self._made_class(hole, board)
+        if cls in ("strong", "draw"):
+            return cls
+        hr = [c >> 2 for c in hole]
+        top = max(c >> 2 for c in board)
+        if cls == "good" or (hr[0] != hr[1] and top in hr):
+            return "top"
+        if cls == "medium":
+            return "medium"
+        if min(hr) > top or self._continue_hand(hole, board):
+            return "equity"
+        return "air"
+
     def postflop(self, s, hole, board):
         opps = s.opponents
         shares = self.preflop_shares(s)
@@ -351,6 +379,21 @@ class Postflop8Mixin:
             else:
                 lead, size = False, 0.0
             if lead:
+                return self.raise_to(s, s.my_bet + size * pot)
+            return "check", 0
+
+        if (s.to_call == 0 and self.cbet_plan and k == 1 and len(board) == 3 and
+                self._was_aggressor(s)):
+            cls = self._cbet_class(hole, board)
+            r = self.rng.random()
+            if cls in ("strong", "top"):
+                p = self.cb_strong if cls == "strong" else self.cb_top
+                size = self.cbet_big
+            else:
+                p = {"draw": self.cb_draw, "equity": self.cb_equity, "medium": self.cb_medium,
+                     "air": self.cb_air}[cls]
+                size = self.cbet_small
+            if r < p:
                 return self.raise_to(s, s.my_bet + size * pot)
             return "check", 0
 

@@ -708,7 +708,9 @@ class Analyst:
 # low connected flops that hit the caller's range (donk_check, donk_texture). Against the
 # flop c-bet it check-raises small (3x) and large (about pot) with sets / two pair, some
 # draws and a few top pairs (xr), and from 15 bb deep never folds any pair, gutshot or
-# backdoor flush draw (cont_rule).
+# backdoor flush draw (cont_rule). As the preflop raiser heads-up it c-bets big (3/4 pot)
+# for value with top pair or better, small (1/3) with draws, overcards and backdoors, and
+# checks back most medium pairs (cbet_plan).
 STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pref=1.4;"
          "small3_value=0.08;small3_margin=0.06;small3_lists=2;behind_pen=0.025;"
          "short_suited_pen=0.1;jam_width_k=2.0;jam_width_depth=5;small3_bluff_ip=0.4;"
@@ -718,7 +720,7 @@ STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pr
          "bb_pair_jam=1;ante_widen=0.12;limp_game=1;limp_lo=0.8;limp_slope=3.0;"
          "limp_pref_suited=4.0;iso_value=0.04;bb_iso=0.2;caller_exp_bb=0.4;limped_real=0.8;"
          "limped_call_pref=2.0;small_bet_margin=1;stretch_down=1;deep_jam_bb=24;deep_jam_k=0.4;"
-         "donk_check=1;donk_texture=1;xr=1;cont_rule=1")
+         "donk_check=1;donk_texture=1;xr=1;cont_rule=1;cbet_plan=1")
 STUDY_TABLE = None  # your study charts (study_ranges/) + imported sims, loaded at start
 STUDY_FOLDERS = ("my_ranges", "study_ranges")   # read in this order (later ones win)
 PLAYERS_FOR_SOLVES = 8      # which solved tables to use (set from --players)
