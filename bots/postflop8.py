@@ -183,6 +183,30 @@ class Postflop8Mixin:
     cb_equity = 0.6      # overcards or a backdoor flush draw: small this often
     cb_medium = 0.2      # middle / bottom pair, underpair: small this often (else check)
     cb_air = 0.3         # nothing at all: small this often
+    # After our bet was called (flop c-bet, then turn barrel), heads-up, first to bet: the
+    # next street by hand type and by what the new card did (1: on).
+    barrel_plan = 0
+    bp_big = 0.75        # big size (share of the pot)
+    bp_small = 0.45      # small turn size
+    bp_thin = 0.5        # river thin-value size
+    bp_strong = 0.9      # sets / two pair / straights / flushes: big this often
+    bp_top = 0.7         # top pair / overpair: big on the turn this often (blank turn)
+    bp_top_bad = 0.35    # ... when the turn completes a flush or straight (smaller then)
+    bp_draw = 0.6        # draws still live on the turn: small this often
+    bp_medium = 0.12     # weaker pairs: small this often (else check)
+    bp_scare = 0.45      # air on a scare turn (jack or higher overcard): small this often
+    bp_blank = 0.12      # air on a blank turn
+    rv_top_good = 0.55   # river: overpair / top pair with a good kicker, thin value
+    rv_top_weak = 0.3    # river: top pair, weak kicker
+    rv_bluff = 0.3       # river: missed draws / air, big bluff
+    # Facing a turn / river bet after calling the last street, heads-up, from cont_min_bb
+    # deep (1: on): top pair or better continues; flush draws / open-enders call up to about
+    # pot, gutshots small bets; weaker pairs call small bets and catch bluffs vs big ones.
+    cont_later = 0
+    cl_small = 0.55      # a bet up to this share of the pot is "small"
+    cl_draw_max = 1.05   # flush draws / open-enders call bets up to this share of the pot
+    cl_medium_big = 0.4  # weaker pairs call a big turn bet this often
+    cl_river_medium = 0.35  # weaker pairs call a river bet this often (bluff-catchers)
     cont_rule = 0        # 1: never fold any pair, gutshot or better draw, or backdoor
     cont_min_bb = 15.0   #    flush draw to the c-bet, from this effective stack (bb)
 
@@ -338,6 +362,155 @@ class Postflop8Mixin:
             return "equity"
         return "air"
 
+    @staticmethod
+    def _followup_spot(s):
+        """Turn or river, heads-up: on the last street we bet and got called (no raise), and
+        nobody has bet this street yet."""
+        streets = ["preflop", "flop", "turn", "river"]
+        cur = streets.index(s.street)
+        if cur < 2 or s.to_call or len([p for p in s.players if not p.folded]) != 2:
+            return False
+        prev = [(seat, a) for st, seat, a, _ in s.history if st == streets[cur - 1]]
+        bets = [seat for seat, a in prev if a == "raise"]
+        return bets == [s.my_seat] and prev[-1][1] == "call"
+
+    @staticmethod
+    def _completes(hole, board):
+        """(we have a flush or straight, the new card completed one we don't have)."""
+        def flush(cards, need_hole):
+            suits = [c & 3 for c in cards]
+            for st in range(4):
+                if suits.count(st) >= 5 and (not need_hole or any((c & 3) == st for c in hole)):
+                    return True
+            return False
+
+        def straight(ranks, mine=None):
+            rs = set(ranks)
+            if 12 in rs:
+                rs.add(-1)
+            for lo in range(-1, 9):
+                w = set(range(lo, lo + 5))
+                if w <= rs and (mine is None or w & mine):
+                    return True
+            return False
+        hr = [c >> 2 for c in hole]
+        br = [c >> 2 for c in board]
+        mine = set(hr) | ({-1} if 12 in hr else set())
+        we = flush(hole + board, True) or straight(hr + br, mine)
+        # (on the board: three of a suit, or four ranks inside a five-window)
+        suits = [c & 3 for c in board]
+        three = any(suits.count(st) >= 3 for st in range(4))
+        rs = set(br) | ({-1} if 12 in br else set())
+        four = any(len(set(range(lo, lo + 5)) & rs) >= 4 for lo in range(-1, 9))
+        prev_suits = [c & 3 for c in board[:-1]]
+        prs = set(br[:-1]) | ({-1} if 12 in br[:-1] else set())
+        was3 = any(prev_suits.count(st) >= 3 for st in range(4))
+        was4 = any(len(set(range(lo, lo + 5)) & prs) >= 4 for lo in range(-1, 9))
+        return we, (three and not was3) or (four and not was4)
+
+    def _barrel(self, s, hole, board, pot):
+        """The turn / river plan (barrel_plan): a move, or None to fall through."""
+        made, scary = self._completes(hole, board)
+        cls = "strong" if made else self._cbet_class(hole, board)
+        river = len(board) == 5
+        new = board[-1] >> 2
+        r = self.rng.random()
+        bet = lambda frac: self.raise_to(s, s.my_bet + frac * pot)   # noqa: E731
+        if cls == "strong":
+            return bet(self.bp_big) if r < self.bp_strong else ("check", 0)
+        if cls == "top":
+            if river:
+                if scary:
+                    return "check", 0
+                good = self._made_class(hole, board) == "good"
+                p = self.rv_top_good if good else self.rv_top_weak
+                return bet(self.bp_thin) if r < p else ("check", 0)
+            if scary:
+                return bet(self.bp_small) if r < self.bp_top_bad else ("check", 0)
+            return bet(self.bp_big) if r < self.bp_top else ("check", 0)
+        if cls == "medium":
+            if river:
+                return "check", 0
+            return bet(self.bp_small) if r < self.bp_medium else ("check", 0)
+        if river:          # missed draws and air: a big bluff now and then
+            return bet(self.bp_big) if r < self.rv_bluff else ("check", 0)
+        if cls == "draw":
+            return bet(self.bp_small) if r < self.bp_draw else ("check", 0)
+        flop_top = max(c >> 2 for c in board[:3])
+        scare = new > flop_top and new >= 9
+        p = self.bp_scare if scare else self.bp_blank
+        return bet(self.bp_small) if r < p else ("check", 0)
+
+    @staticmethod
+    def _draw_kind(hole, board):
+        """"flush" / "open" (open-ender or double gutter) / "gut" / None: what we draw to,
+        with one of our cards (turn only: no draws on the river)."""
+        if len(board) >= 5:
+            return None
+        suits = [c & 3 for c in hole + board]
+        for st in range(4):
+            if suits.count(st) == 4 and any((c & 3) == st for c in hole):
+                return "flush"
+        hr = [c >> 2 for c in hole]
+        br = [c >> 2 for c in board]
+        have = set(hr + br)
+        mine = set(hr)
+
+        def straights(rs):
+            rs = set(rs) | ({-1} if 12 in rs else set())
+            for lo in range(-1, 9):
+                w = set(range(lo, lo + 5))
+                if w <= rs:
+                    yield w
+        if any(True for _ in straights(have)):
+            return None
+        outs = 0
+        for r in range(13):
+            if r in have:
+                continue
+            if any(w & (mine | ({-1} if 12 in mine else set()))
+                   for w in straights(have | {r})):
+                outs += 1
+        return "open" if outs >= 2 else "gut" if outs == 1 else None
+
+    def _later_defence(self, s, hole, board, pot):
+        """cont_later: "call", or None for the usual logic."""
+        streets = ["preflop", "flop", "turn", "river"]
+        cur = streets.index(s.street)
+        if cur < 2 or not s.to_call:
+            return None
+        live = [p for p in s.players if not p.folded]
+        if len(live) != 2:
+            return None
+        prev = [(seat, a) for st, seat, a, _ in s.history if st == streets[cur - 1]]
+        now = [(seat, a) for st, seat, a, _ in s.history if st == s.street]
+        pb = [seat for seat, a in prev if a == "raise"]
+        nb = [seat for seat, a in now if a == "raise"]
+        if len(pb) != 1 or pb[0] == s.my_seat or prev[-1][1] != "call" or nb != pb:
+            return None
+        opp = next(p for p in s.players if p.seat == pb[0])
+        eff = min(s.my_stack + s.my_bet, opp.stack + opp.bet) / s.big_blind
+        if eff < self.cont_min_bb or s.to_call >= 0.6 * s.my_stack:
+            return None
+        frac = s.to_call / max(1, pot - s.to_call)
+        made, _ = self._completes(hole, board)
+        cls = "strong" if made else self._cbet_class(hole, board)
+        if cls in ("strong", "top"):
+            return "call"
+        river = cur == 3
+        if cls == "medium":
+            if river:
+                return "call" if self.rng.random() < self.cl_river_medium else None
+            if frac <= self.cl_small or self.rng.random() < self.cl_medium_big:
+                return "call"
+            return None
+        d = self._draw_kind(hole, board)
+        if d in ("flush", "open") and frac <= self.cl_draw_max:
+            return "call"
+        if d == "gut" and frac <= self.cl_small:
+            return "call"
+        return None
+
     def postflop(self, s, hole, board):
         opps = s.opponents
         shares = self.preflop_shares(s)
@@ -397,6 +570,9 @@ class Postflop8Mixin:
                 return self.raise_to(s, s.my_bet + size * pot)
             return "check", 0
 
+        if s.to_call == 0 and self.barrel_plan and self._followup_spot(s):
+            return self._barrel(s, hole, board, pot)
+
         if s.to_call == 0:
             if eq >= self.value_big * f:
                 return self.raise_to(s, s.my_bet + self.value_size * pot)
@@ -440,6 +616,15 @@ class Postflop8Mixin:
                     return "call", 0               # (the rest of them: call)
             if (self.cont_rule and eff >= self.cont_min_bb and
                     s.to_call < 0.5 * s.my_stack and self._continue_hand(hole, board)):
+                return "call", 0
+
+        if self.cont_later:
+            d = self._later_defence(s, hole, board, pot)
+            if d == "call":
+                # (strong hands may still raise: the usual logic decides that first)
+                if self._completes(hole, board)[0] or self._made_class(hole, board) == "strong":
+                    if s.min_raise_to and self.rng.random() < 0.45:
+                        return self.raise_to(s, s.opp_bet + pot + s.to_call)
                 return "call", 0
 
         to_call = min(s.to_call, s.my_stack) if self.small_bet_margin else s.to_call
