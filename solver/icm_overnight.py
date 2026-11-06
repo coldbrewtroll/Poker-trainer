@@ -576,7 +576,7 @@ class Harvest:
             def act(self, s):
                 sp = FT.icm_spot(s) if s.street == "preflop" else None
                 mv = self.bot.act(s)
-                if sp is not None and (sp["kind"] in ("sb", "sb_limp") or sp.get("sb")):
+                if sp is not None and sp.get("game"):
                     sp = None    # (the SB vs BB game: its own solve, checked separately)
                 if sp is not None:
                     harvest.reads.append((s, sp, mv, list(ft.pays(len(sp["stacks"])))))

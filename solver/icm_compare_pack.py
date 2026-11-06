@@ -113,16 +113,22 @@ SB_HANDS = ["AA", "KK", "QQ", "TT", "88", "AKs", "AKo", "AQo", "A5o", "K9o", "Q7
 
 def sb_section(pays):
     names = {"fold": "fold", "limp": "limp", "raise": f"raise {I.SB_RAISE_TO:g}", "jam": "jam"}
+    names2 = {"check": "check", "iso": f"raise to {I.SB_ISO_TO:g}", "jam": "jam", "fold": "fold",
+              "call": "call"}
     print("## Small blind vs big blind: limps and the 3 bb raise (traps)\n")
     print("For these, set the tree to: **small blind**: fold, limp, raise to "
-          f"{I.SB_RAISE_TO:g} bb, all-in; **big blind** facing a limp: check or all-in; facing "
-          f"the raise: fold or all-in; facing the all-in: call or fold; **small blind** facing "
-          f"the big blind's all-in: call or fold. Everyone before the small blind folds. "
-          f"Same blinds, ante and payouts as above.\n")
-    print(f"Postflop (a limped pot the big blind checks): the trainer doesn't play it out; it "
-          f"gives the small blind (out of position) {100 * I.SB_LIMP_REALIZE:.0f}% of its "
-          f"equity. In HRC pick the nearest postflop model (e.g. equity realization, or "
-          f"check down); expect the limp frequencies of weak hands to differ most.\n")
+          f"{I.SB_RAISE_TO:g} bb, all-in; **big blind** facing a limp: check, raise to "
+          f"{I.SB_ISO_TO:g} bb (from {I.SB_ISO_MIN_BB:g} bb effective) or all-in; facing the "
+          f"raise: fold, call or all-in; facing the all-in: call or fold; **small blind** "
+          f"facing the {I.SB_ISO_TO:g} bb raise: fold, call or all-in; facing an all-in: call "
+          f"or fold. Everyone before the small blind folds. Same blinds, ante and payouts as "
+          f"above.\n")
+    print(f"Postflop (a pot that reaches the flop without an all-in): the trainer checks it "
+          f"down. The player out of position gets {100 * I.OOP_REALIZE:.0f}% of its equity in a "
+          f"limped or raised pot ({100 * I.CALLER_REALIZE:.0f}% when it called a raise), less "
+          f"for weak hands (times the square root of twice its equity, up to 1). In HRC pick "
+          f"the nearest postflop model; expect the limps and calls of weak hands to differ "
+          f"most.\n")
     for k, (title, st) in enumerate(SB_SPOTS, 1):
         n = len(st)
         p = pays[:n]
@@ -142,12 +148,18 @@ def sb_section(pays):
                   f"`{compact(g['ranges'][a])}` |")
         fold = 100 - sum(share(g["ranges"][a]) for a in ("jam", "limp", "raise"))
         print(f"| Fold | {fold:.1f}% | |\n")
-        bb = g["bb"]
-        print(f"Big blind: jams over a limp **{share(bb['vs_limp']):.1f}%** "
-              f"(`{compact(bb['vs_limp'])}`)" +
-              (f"; over the raise **{share(bb['vs_raise']):.1f}%** (`{compact(bb['vs_raise'])}`)"
-               if g["can_raise"] else "") +
-              f"; calls the jam **{share(bb['vs_jam']):.1f}%** (`{compact(bb['vs_jam'])}`).\n")
+        rg = g["ranges"]
+        m = FT._range_mix(g, "bb_vs_limp", None)
+        print("Big blind over a limp: " + ", ".join(f"{names2[a]} {100 * f:.0f}%" for a, f in
+                                                   sorted(m.items(), key=lambda kv: -kv[1])) +
+              f" (raises `{compact(rg['bb_iso'])}`; jams `{compact(rg['bb_jam_limp'])}`).  ")
+        if g["can_raise"]:
+            m = FT._range_mix(g, "bb_vs_raise", None)
+            print("Over the raise: " + ", ".join(f"{names2[a]} {100 * f:.0f}%" for a, f in
+                                                sorted(m.items(), key=lambda kv: -kv[1])) +
+                  f" (jams `{compact(rg['bb_jam_raise'])}`).  ")
+        print(f"Against a jam: calls **{share(rg['bb_call_jam']):.1f}%** "
+              f"(`{compact(rg['bb_call_jam'])}`).\n")
         print("Each option's value compared with folding (ICM, $):\n")
         print("| Hand | The trainer plays it | Limp | Raise 3 | Jam |")
         print("|---|---|---|---|---|")
@@ -157,6 +169,54 @@ def sb_section(pays):
                                sorted(mix.items(), key=lambda kv: -kv[1]) if f >= 0.05)
             cell = lambda a: f"{ev[a] - ev['fold']:+,.0f}" if a in ev else "-"  # noqa: E731
             print(f"| {h} | {plays} | {cell('limp')} | {cell('raise')} | {cell('jam')} |")
+        print()
+
+
+OPEN_SPOTS = [
+    ("8 left: UTG 10 bb first in, seven behind", [10, 32, 26, 22, 19, 16, 13, 11], 0),
+    ("4 left: CO 11 bb first in", [11, 20, 15, 30], 0),
+    ("6 left: HJ 9 bb first in", [25, 9, 30, 8, 22, 18], 1),
+]
+OPEN_HANDS = ["AA", "KK", "QQ", "JJ", "TT", "AKs", "AKo", "AQo", "KJo", "A5o", "55", "98s"]
+
+
+def open_section(pays):
+    names = {"fold": "fold", "open": f"raise {I.OPEN_TO:g}", "jam": "jam"}
+    print("## A short player first in: the min-raise trap\n")
+    print(f"Tree: **the first player in** (everyone before folded): fold, raise to "
+          f"{I.OPEN_TO:g} bb or all-in. **Everyone behind**, in turn, facing the raise: fold or "
+          f"all-in (the big blind may also call); facing the all-in: call or fold. **The "
+          f"raiser** facing an all-in: call or fold. The first player to go all-in or call "
+          f"ends it (the rest fold). A big blind's call goes to the flop and is checked down "
+          f"({100 * I.CALLER_REALIZE:.0f}% of its equity, less for weak hands).\n")
+    for k, (title, st, o) in enumerate(OPEN_SPOTS, 1):
+        n = len(st)
+        p = pays[:n]
+        pos = I.positions(n)
+        g = FT.solve_game({"game": "open", "stacks": st, "opener": o}, p)
+        print(f"### M{k}. {title}\n")
+        print("Stacks: " + ", ".join(f"{pos[i]} {st[i]:g}" for i in range(n)) + "\n")
+        rg = g["ranges"]
+        print("| First in | % of hands | Range |")
+        print("|---|---|---|")
+        print(f"| Raise {I.OPEN_TO:g} | {share(rg['open']):.1f}% | `{compact(rg['open'])}` |")
+        print(f"| Jam | {share(rg['jam']):.1f}% | `{compact(rg['jam'])}` |\n")
+        for i in g["resp"]:
+            m = FT._range_mix(g, f"vs_open:{i}", None)
+            print(f"- **{pos[i]}** ({st[i]:g} bb) against the raise: re-jams "
+                  f"{100 * m.get('jam', 0):.1f}%" +
+                  (f", calls {100 * m.get('call', 0):.1f}%" if i == n - 1 else "") +
+                  f"; calls a jam {share(rg['call_jam'][i]):.1f}%")
+        print()
+        print("Each option's value compared with folding (ICM, $):\n")
+        print(f"| Hand | The trainer plays it | Raise {I.OPEN_TO:g} | Jam |")
+        print("|---|---|---|---|")
+        for h in OPEN_HANDS:
+            mix, ev = g["nodes"]["open"]["mix"][h], g["nodes"]["open"]["ev"][h]
+            plays = " / ".join(f"{names[a]} {100 * f:.0f}%" for a, f in
+                               sorted(mix.items(), key=lambda kv: -kv[1]) if f >= 0.05)
+            print(f"| {h} | {plays} | {ev['open'] - ev['fold']:+,.0f} | "
+                  f"{ev['jam'] - ev['fold']:+,.0f} |")
         print()
 
 
@@ -201,6 +261,7 @@ def main():
                 f"{h} {cf['gain'][h]:+,.0f}" for h in hands) +
                 f"  \nCall range {100 * cf['share']:.1f}%, needs {100 * cf['need']:.1f}% equity\n")
     sb_section(pays)
+    open_section(pays)
     print("## What can differ, and why\n")
     print("- **Equities** (the tables above) are plain Malmuth-Harville ICM: they should match "
           "HRC and ICMIZER to the dollar. Checked here against a brute-force version that lists "

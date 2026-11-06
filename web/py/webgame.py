@@ -241,8 +241,8 @@ class WebGame:
             if not right:
                 st["lost"] += abs(g)
             node["icm"] = (right, g, sum(icm["pays"]))
-            if icm["kind"] == "sb":      # the SB vs BB game: fold / limp / 3 bb / jam
-                out["icm"] = FT.sb_verdict(icm, right, g)
+            if icm["kind"] == "mix":     # a game with traps: the solve's mix
+                out["icm"] = FT.mix_verdict(icm, right, g)
             else:
                 go = "Jam" if icm["kind"] == "jam" else "Call"
                 out["icm"] = (f"ICM: {go if g > 0 else 'Fold'} {icm['hand']} was best "

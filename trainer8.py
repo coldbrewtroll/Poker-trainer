@@ -563,7 +563,7 @@ class Analyst:
         if move is not None and not hero and describe(move, s) == "Fold":
             return None  # folds by others aren't drawn (they leave the hand)
         hands = self.ranges.get(seat, ORDER)
-        exact_mix = FTL.sb_chart(s) if (s.street == "preflop" and FTL.POLICY.get("on")) else None
+        exact_mix = FTL.game_chart(s) if (s.street == "preflop" and FTL.POLICY.get("on")) else None
         if exact_mix is not None:
             return self.analyse_mix(s, move, adv, auto, exact_mix)
         if s.street != "preflop" and len(hands) > 36:
@@ -3393,10 +3393,9 @@ class Trainer:
                 if out:
                     return sorted(out)[:3]
         if s.street == "preflop" and self.mode == "Final table":
-            sp = FTL.icm_spot(s)
-            if sp is not None and sp["kind"] == "sb":   # the SB vs BB game: its 3 bb raise
-                to = FTL.sb_raise_to(s)
-                return [to] if to else []
+            game = FTL.game_sizes(s)       # a game with traps: its own raise size(s)
+            if game is not None:
+                return game
         if s.street == "preflop":
             sim = self.sim_sizes(s)
             if sim:      # your sim's own sizes here (a two-size tree: both)
@@ -4210,8 +4209,8 @@ class Trainer:
         elif k == "icm_graded":
             _, spot, right, g = ev
             self.icm_last = (right, g)
-            if spot["kind"] == "sb":
-                self.toast = FTL.sb_verdict(spot, right, g)
+            if spot["kind"] == "mix":
+                self.toast = FTL.mix_verdict(spot, right, g)
             else:
                 go = "Jam" if spot["kind"] == "jam" else "Call"
                 best = go if g > 0 else "Fold"
@@ -4225,7 +4224,7 @@ class Trainer:
             if node is not None:
                 node["icm"] = (right, g, sum(spot["pays"]))
                 node["icm_kind"] = ("call" if spot["kind"] == "call" else
-                                    "sb" if spot["kind"] == "sb" else
+                                    "trap" if spot["kind"] == "mix" else
                                     "rejam" if spot.get("opener") is not None else "jam_first")
                 node["icm_act"] = spot.get("answer")
                 if node is self.caption_node:
