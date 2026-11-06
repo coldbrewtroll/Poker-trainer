@@ -152,6 +152,15 @@ class Postflop8Mixin:
     need_equity = 0      # 1: facing a bet, fold hands with no pair, draw or overcards
     thin_adapt = 0.0     # >0: value-bet thinner against players who rarely fold to bets
     call_adapt = 0.0     # >0: call lighter vs aggressive players, tighter vs passive ones
+    # Out of position to the last aggressor (e.g. the big blind after calling a raise):
+    # 1 = check to them almost always instead of leading (no donk bets with medium hands).
+    # Leads left: strong hands donk_strong of the time (else check-raise), top pair with a
+    # good kicker / an overpair donk_good, draws donk_draw, air donk_air. Off by default.
+    donk_check = 0
+    donk_strong = 0.6
+    donk_good = 0.3
+    donk_draw = 0.35
+    donk_air = 0.03
 
     @staticmethod
     def _was_aggressor(s):
@@ -184,6 +193,65 @@ class Postflop8Mixin:
         bets = [seat for seat, a in flop if a == "raise"]
         return not turn_bets and bets == [s.my_seat] and flop[-1][1] == "call"
 
+    @staticmethod
+    def _donk_spot(s):
+        """True when we're first to bet this street and the last aggressor (whoever bet or
+        raised last on the previous street) is still in and acts after us: leading here is
+        a donk bet. (After a street checked through, betting is a probe: not this.)"""
+        streets = ["preflop", "flop", "turn", "river"]
+        cur = streets.index(s.street)
+        if cur == 0 or s.to_call:
+            return False
+        prev = streets[cur - 1]
+        agg = None
+        for st, seat, a, _ in s.history:
+            if st == prev and a == "raise":
+                agg = seat
+        if agg is None or agg == s.my_seat:
+            return False
+        p = next((p for p in s.players if p.seat == agg), None)
+        if p is None or p.folded or p.all_in:
+            return False
+        acted = any(st == s.street and seat == agg for st, seat, _, _ in s.history)
+        return not acted
+
+    @staticmethod
+    def _made_class(hole, board):
+        """What we hold, by hand type: "strong" (set, trips, two pair with both cards),
+        "good" (overpair, top pair with a jack-or-better kicker), "medium" (any other pair),
+        "draw" (flush draw, open-ender or gutshot; not on the river) or "air"."""
+        hr = sorted((c >> 2 for c in hole), reverse=True)
+        br = [c >> 2 for c in board]
+        top = max(br)
+        if hr[0] == hr[1]:
+            if hr[0] in br:
+                return "strong"
+            return "good" if hr[0] > top else "medium"
+        hits = [r for r in hr if r in br]
+        if len(hits) == 2:
+            return "strong"
+        if hits:
+            r = hits[0]
+            if br.count(r) >= 2:
+                return "strong"            # trips
+            kick = hr[1] if hr[0] == r else hr[0]
+            return "good" if r == top and kick >= 9 else "medium"
+        if len(board) >= 5:
+            return "air"
+        suits = [c & 3 for c in hole + board]
+        for st in range(4):
+            if suits.count(st) >= 4 and any((c & 3) == st for c in hole):
+                return "draw"
+        ranks = set(hr + br)
+        if 12 in ranks:
+            ranks.add(-1)
+        mine = set(hr) | ({-1} if 12 in hr else set())
+        for lo in range(-1, 9):
+            window = set(range(lo, lo + 5))
+            if len(window & ranks) >= 4 and window & mine:
+                return "draw"
+        return "air"
+
     def postflop(self, s, hole, board):
         opps = s.opponents
         shares = self.preflop_shares(s)
@@ -207,6 +275,24 @@ class Postflop8Mixin:
         pot = s.pot
         stack_total = s.my_stack + s.my_bet
         river = len(board) == 5
+
+        if s.to_call == 0 and self.donk_check and self._donk_spot(s):
+            r = self.rng.random()
+            cls = self._made_class(hole, board)
+            # (by hand type: the quick equity estimate is too noisy to sort one-pair hands)
+            if cls == "strong":
+                lead, size = r < self.donk_strong, self.value_size
+            elif cls == "good":
+                lead, size = r < self.donk_good, self.thin_size
+            elif cls == "draw":
+                lead, size = r < self.donk_draw * min(1.0, bluff_mult), 0.5
+            elif cls == "air":
+                lead, size = r < self.donk_air * min(1.0, bluff_mult), 0.5
+            else:
+                lead, size = False, 0.0
+            if lead:
+                return self.raise_to(s, s.my_bet + size * pot)
+            return "check", 0
 
         if s.to_call == 0:
             if eq >= self.value_big * f:

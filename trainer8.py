@@ -703,7 +703,9 @@ class Analyst:
 # study_ranges/): jams capped by how wide the opener is (less so when shorter), a fixed-size
 # small 3-bet, bluffs from hands that would fold; the SB limps, traps and jams first in;
 # the BB defends wide (high cards and connected hands, suited aces call, offsuit aces and
-# middle pairs jam) and raises or jams against a limp.
+# middle pairs jam) and raises or jams against a limp. Postflop, out of position to the
+# preflop raiser (or the last street's bettor) it checks to them ~88% of the time: no leads
+# with medium pairs; strong hands, good top pairs and draws only sometimes (donk_check).
 STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pref=1.4;"
          "small3_value=0.08;small3_margin=0.06;small3_lists=2;behind_pen=0.025;"
          "short_suited_pen=0.1;jam_width_k=2.0;jam_width_depth=5;small3_bluff_ip=0.4;"
@@ -712,7 +714,8 @@ STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pr
          "curve_sb=0.8;sb_curve_lo=0.55;sb_curve_slope=1.2;ace_off_pref=0.3;call_pref_bb=2.5;"
          "bb_pair_jam=1;ante_widen=0.12;limp_game=1;limp_lo=0.8;limp_slope=3.0;"
          "limp_pref_suited=4.0;iso_value=0.04;bb_iso=0.2;caller_exp_bb=0.4;limped_real=0.8;"
-         "limped_call_pref=2.0;small_bet_margin=1;stretch_down=1;deep_jam_bb=24;deep_jam_k=0.4")
+         "limped_call_pref=2.0;small_bet_margin=1;stretch_down=1;deep_jam_bb=24;deep_jam_k=0.4;"
+         "donk_check=1")
 STUDY_TABLE = None  # your study charts (study_ranges/) + imported sims, loaded at start
 STUDY_FOLDERS = ("my_ranges", "study_ranges")   # read in this order (later ones win)
 PLAYERS_FOR_SOLVES = 8      # which solved tables to use (set from --players)
