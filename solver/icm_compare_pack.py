@@ -114,12 +114,14 @@ SB_HANDS = ["AA", "KK", "QQ", "TT", "88", "AKs", "AKo", "AQo", "A5o", "K9o", "Q7
 def sb_section(pays):
     names = {"fold": "fold", "limp": "limp", "raise": f"raise {I.SB_RAISE_TO:g}", "jam": "jam"}
     names2 = {"check": "check", "iso": f"raise to {I.SB_ISO_TO:g}", "jam": "jam", "fold": "fold",
-              "call": "call"}
+              "call": "call", "3bet": f"3-bet to {I.BB_3BET_TO:g}"}
     print("## Small blind vs big blind: limps and the 3 bb raise (traps)\n")
     print("For these, set the tree to: **small blind**: fold, limp, raise to "
           f"{I.SB_RAISE_TO:g} bb, all-in; **big blind** facing a limp: check, raise to "
           f"{I.SB_ISO_TO:g} bb (from {I.SB_ISO_MIN_BB:g} bb effective) or all-in; facing the "
-          f"raise: fold, call or all-in; facing the all-in: call or fold; **small blind** "
+          f"raise: fold, call, 3-bet to {I.BB_3BET_TO:g} bb (from {I.BB_3BET_MIN_BB:g} bb "
+          f"effective) or all-in; facing the all-in: call or fold; **small blind** facing the "
+          f"3-bet: fold, call or all-in; **small blind** "
           f"facing the {I.SB_ISO_TO:g} bb raise: fold, call or all-in; facing an all-in: call "
           f"or fold. Everyone before the small blind folds. Same blinds, ante and payouts as "
           f"above.\n")
@@ -185,9 +187,10 @@ def open_section(pays):
     print("## A short player first in: the min-raise trap\n")
     print(f"Tree: **the first player in** (everyone before folded): fold, raise to "
           f"{I.OPEN_TO:g} bb or all-in. **Everyone behind**, in turn, facing the raise: fold or "
-          f"all-in (the big blind may also call); facing the all-in: call or fold. **The "
-          f"raiser** facing an all-in: call or fold. The first player to go all-in or call "
-          f"ends it (the rest fold). A big blind's call goes to the flop and is checked down "
+          f"all-in; the **big blind** also call or 3-bet to {I.THREE_BET_TO:g} bb (from "
+          f"{I.THREE_BET_MIN_BB:g} bb effective); facing the all-in: call or fold. **The "
+          f"raiser** facing a 3-bet: fold, call or all-in; facing an all-in: call or fold. The "
+          f"first player to put chips in ends it (the rest fold). A big blind's call goes to the flop and is checked down "
           f"({100 * I.CALLER_REALIZE:.0f}% of its equity, less for weak hands).\n")
     for k, (title, st, o) in enumerate(OPEN_SPOTS, 1):
         n = len(st)
@@ -205,7 +208,8 @@ def open_section(pays):
             m = FT._range_mix(g, f"vs_open:{i}", None)
             print(f"- **{pos[i]}** ({st[i]:g} bb) against the raise: re-jams "
                   f"{100 * m.get('jam', 0):.1f}%" +
-                  (f", calls {100 * m.get('call', 0):.1f}%" if i == n - 1 else "") +
+                  (f", calls {100 * m.get('call', 0):.1f}%, 3-bets {100 * m.get('3bet', 0):.1f}%"
+                   if i == n - 1 else "") +
                   f"; calls a jam {share(rg['call_jam'][i]):.1f}%")
         print()
         print("Each option's value compared with folding (ICM, $):\n")

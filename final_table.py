@@ -278,6 +278,8 @@ def grade(spot, move, s=None):
             return None
         ev, mix = res["ev"][spot["hand"]], res["mix"][spot["hand"]]
         tol = 1e-4 * sum(spot["pays"])          # ($100 in a $1M pool: a coin flip)
+        if premium(spot["hand"]):               # (top hands: close options are all fine)
+            tol = PREMIUM_MARGIN * sum(spot["pays"])
         top = max(ev.values())
         # the best play: of the actions worth the most (within $tol), the one played most
         best = max((a for a in ev if ev[a] >= top - tol), key=lambda a: mix.get(a, 0.0))
@@ -445,10 +447,34 @@ SB_GAME_BB = GAME_SB_BB             # (the first version's name)
 
 ACTION_LABEL = {"fold": "Fold", "check": "Check", "call": "Call", "limp": "Limp", "jam": "Jam",
                 "raise": f"Raise to {I.SB_RAISE_TO:g}", "iso": f"Raise to {I.SB_ISO_TO:g}",
-                "open": f"Raise to {I.OPEN_TO:g}"}
+                "open": f"Raise to {I.OPEN_TO:g}", "3bet": "3-bet"}
 # each decision's raise that isn't all-in: (its action name, size in bb)
 NODE_RAISE = {"sb": ("raise", I.SB_RAISE_TO), "bb_vs_limp": ("iso", I.SB_ISO_TO),
-              "open": ("open", I.OPEN_TO)}
+              "open": ("open", I.OPEN_TO), "bb_vs_raise": ("3bet", I.BB_3BET_TO)}
+# Top hands get every option: traps, small raises, jams. When several are close (within
+# this share of the prize pool), the bots mix them and your grade counts any of them right.
+PREMIUM_SHARE = 0.05
+PREMIUM_MARGIN = 0.002
+
+
+def node_raise(node):
+    """(action, size bb) of a decision's raise that isn't all-in, or None."""
+    if node in NODE_RAISE:
+        return NODE_RAISE[node]
+    if node.startswith("vs_open:"):
+        return ("3bet", I.THREE_BET_TO)
+    return None
+
+
+def action_label(a, node=None):
+    if a == "3bet" and node is not None and node_raise(node):
+        return f"Raise to {node_raise(node)[1]:g}"
+    return ACTION_LABEL[a]
+
+
+def premium(hand):
+    from bots.preflop8 import TOP
+    return TOP[hand] <= PREMIUM_SHARE
 
 
 def _game_spot(order, st, me, acts, idx_of, s):
@@ -479,12 +505,16 @@ def _game_spot(order, st, me, acts, idx_of, s):
                     if allin[1]:
                         return dict(g, kind="call", node="sb_vs_jam_limp", jammer=bb)
                     return dict(g, kind="mix", node="sb_vs_iso", jammer=None)
-                if seq[0] == (sb, "raise") and not allin[0] and allin[1]:
-                    return dict(g, kind="call", node="sb_vs_jam_raise", jammer=bb)
-            if (me == bb and len(seq) == 3 and seq[0] == (sb, "call") and
-                    seq[1] == (bb, "raise") and not allin[1] and seq[2] == (sb, "raise") and
-                    allin[2]):
-                return dict(g, kind="call", node="bb_vs_rejam_iso", jammer=sb)
+                if seq[0] == (sb, "raise") and not allin[0]:
+                    if allin[1]:
+                        return dict(g, kind="call", node="sb_vs_jam_raise", jammer=bb)
+                    return dict(g, kind="mix", node="sb_vs_3bet", jammer=None)
+            if (me == bb and len(seq) == 3 and seq[1] == (bb, "raise") and not allin[1] and
+                    seq[2] == (sb, "raise") and allin[2]):
+                if seq[0] == (sb, "call"):
+                    return dict(g, kind="call", node="bb_vs_rejam_iso", jammer=sb)
+                if seq[0] == (sb, "raise") and not allin[0]:
+                    return dict(g, kind="call", node="bb_vs_4bet", jammer=sb)
         return None
     if not seq:
         if me < sb:
@@ -502,8 +532,13 @@ def _game_spot(order, st, me, acts, idx_of, s):
                 if allin[0]:
                     return dict(g, kind="call", node=f"vs_jam:{me}", jammer=o)
                 return dict(g, kind="mix", node=f"vs_open:{me}", jammer=None)
-            if len(seq) == 2 and me == o and seq[1][1] == "raise" and allin[1] and not allin[0]:
-                return dict(g, kind="call", node="open_vs_rejam", jammer=seq[1][0])
+            if len(seq) == 2 and me == o and seq[1][1] == "raise" and not allin[0]:
+                if allin[1]:
+                    return dict(g, kind="call", node="open_vs_rejam", jammer=seq[1][0])
+                return dict(g, kind="mix", node="open_vs_3bet", jammer=None, three=seq[1][0])
+            if (len(seq) == 3 and seq[1][0] == me and seq[1][1] == "raise" and not allin[1]
+                    and seq[2] == (o, "raise") and allin[2]):
+                return dict(g, kind="call", node=f"vs_4bet:{me}", jammer=o)
     return None
 
 
@@ -596,6 +631,16 @@ def _game_res(sp, pays, chips=False):
         spot = I.Spot(st, value, s, posts=posts(s=1.0, b=I.SB_ISO_TO), responders=[b],
                       fold_to=s)
         jr, g = rg["limp_rejam"], gain("sb_vs_iso", "jam", "fold")
+    elif node == "bb_vs_4bet":
+        spot = I.Spot(st, value, s, posts=posts(s=I.SB_RAISE_TO, b=I.BB_3BET_TO), responders=[b],
+                      fold_to=s)
+        jr, g = rg["sb_4bet"], gain("sb_vs_3bet", "jam", "fold")
+    elif node.startswith("vs_4bet:"):
+        o, i = game["opener"], sp.get("me", sp.get("hero"))
+        p = posts()
+        p[o], p[i] = I.OPEN_TO, I.THREE_BET_TO
+        spot = I.Spot(st, value, o, posts=p, responders=[i], fold_to=o)
+        jr, g = rg["fourbet"], gain("open_vs_3bet", "jam", "fold")
     elif node.startswith("vs_jam:"):
         o = game["opener"]
         spot, jr, g = I.Spot(st, value, o), rg["jam"], gain("open", "jam", "fold")
@@ -624,7 +669,8 @@ def node_action(node, move, s):
     if a == "raise":
         if move[1] >= s.max_raise_to - 1:
             return "jam"
-        return NODE_RAISE.get(node, (None,))[0]
+        nr = node_raise(node)
+        return nr[0] if nr else None
     return None
 
 
@@ -642,14 +688,14 @@ def game_sizes(s):
         return None
     table = POLICY.get("table")
     node = sp["node"]
-    if node not in NODE_RAISE:
+    nr = node_raise(node)
+    if nr is None:
         return []
     if table is not None:
         res = game_res(sp, table.pays(len(sp["stacks"])))
-        name = NODE_RAISE[node][0]
-        if res is None or not any(name in m for m in res["mix"].values()):
+        if res is None or not any(nr[0] in m for m in res["mix"].values()):
             return []
-    to = _raise_to(s, NODE_RAISE[node][1])
+    to = _raise_to(s, nr[1])
     return [to] if to else []
 
 
@@ -670,6 +716,20 @@ def _pick(mix, rng=None):
     return max(mix, key=mix.get)
 
 
+def premium_mix(mix, ev, pool):
+    """A top hand's mix at the table: every option within PREMIUM_MARGIN of the best gets
+    played some of the time (traps, small raises, jams), so big hands can't be read."""
+    if not ev:
+        return mix
+    best = max(ev.values())
+    close = [a for a in ev if a != "fold" and ev[a] >= best - PREMIUM_MARGIN * pool]
+    if len(close) < 2:
+        return mix
+    w = {a: mix.get(a, 0.0) + 0.15 for a in close}
+    t = sum(w.values())
+    return {a: x / t for a, x in w.items()}
+
+
 def _move_for(action, node, s):
     if action == "fold":
         return ("fold", 0) if s.to_call else ("check", 0)
@@ -679,7 +739,8 @@ def _move_for(action, node, s):
         return ("call", 0)
     if action == "jam":
         return ("raise", s.max_raise_to)
-    to = _raise_to(s, NODE_RAISE[node][1]) if node in NODE_RAISE else None
+    nr = node_raise(node)
+    to = _raise_to(s, nr[1]) if nr else None
     return ("raise", to or s.max_raise_to)
 
 
@@ -690,12 +751,15 @@ def game_layer(s, sp, pays, move):
     if sp["kind"] == "mix":
         n = len(sp["stacks"])
         # (a clear fold with players behind: no solve needed, the phone stays quick)
-        if sp["node"] == "open" and TOP[hand] > 0.5 and n - 1 - sp["me"] >= 3:
+        if sp["node"] == "open" and TOP[hand] > 0.35 and n - 1 - sp["me"] >= 3:
             return ("fold", 0)
         res = game_res(sp, pays)
         if res is None or hand not in res["mix"]:
             return None
-        return _move_for(_pick(res["mix"][hand]), sp["node"], s)
+        mix = res["mix"][hand]
+        if premium(hand):
+            mix = premium_mix(mix, res["ev"].get(hand, {}), sum(pays))
+        return _move_for(_pick(mix), sp["node"], s)
     cf = game_res(sp, pays)
     if cf is None:
         return None
@@ -730,12 +794,13 @@ def mix_verdict(spot, right, g):
     """The grade's one-liner at a game decision."""
     res = spot["res"]
     mix = res["mix"][spot["hand"]]
-    plays = " / ".join(f"{ACTION_LABEL[a].lower()} {100 * f:.0f}%" for a, f in
+    node = spot.get("node")
+    plays = " / ".join(f"{action_label(a, node).lower()} {100 * f:.0f}%" for a, f in
                        sorted(mix.items(), key=lambda kv: -kv[1]) if f >= 0.05)
     if right:
-        return f"ICM: {ACTION_LABEL[spot['answer']]} {spot['hand']} is right ({plays})"
-    return (f"ICM: {ACTION_LABEL[spot['best']]} {spot['hand']} was best ({plays}); that cost "
-            f"{I.money_k(abs(g))}")
+        return f"ICM: {action_label(spot['answer'], node)} {spot['hand']} is right ({plays})"
+    return (f"ICM: {action_label(spot['best'], node)} {spot['hand']} was best ({plays}); that "
+            f"cost {I.money_k(abs(g))}")
 
 
 sb_verdict = mix_verdict
@@ -767,7 +832,7 @@ def game_info(spot):
     n = len(st)
     pos = I.positions(n)
     node = spot["node"]
-    L = lambda m: "  ·  ".join(f"{ACTION_LABEL[a].lower()} {100 * f:.0f}%"  # noqa: E731
+    L = lambda m: "  \u00b7  ".join(f"{action_label(a, node).lower()} {100 * f:.0f}%"  # noqa
                                      for a, f in sorted(m.items(), key=lambda kv: -kv[1])
                                      if f >= 0.005)
     sh = lambda w: 100 * I._share_w(w)                                          # noqa: E731
@@ -788,8 +853,11 @@ def game_info(spot):
             "sb_vs_iso": f"You limped and the big blind raised to {I.SB_ISO_TO:g} bb. Fold, "
                          f"call (the pot goes to the flop) or jam.",
             "bb_vs_raise": f"The small blind ({st[s]:g} bb) raised to {I.SB_RAISE_TO:g} bb. "
-                           f"Fold, call or jam: its raises mix traps and strong hands with "
-                           f"some bluffs."}[node]
+                           f"Fold, call" + (f", 3-bet to {I.BB_3BET_TO:g} bb" if game["can_3b"]
+                                            else "") + " or jam: its raises mix traps and "
+                           f"strong hands with some bluffs.",
+            "sb_vs_3bet": f"You raised to {I.SB_RAISE_TO:g} bb and the big blind 3-bet to "
+                          f"{I.BB_3BET_TO:g} bb. Fold, call (the pot goes to the flop) or jam."}[node]
         out.append((None, [desc]))
         if node == "sb":
             out.append(("How the big blind answers", [
@@ -813,6 +881,10 @@ def game_info(spot):
             out.append(("The big blind's raise", [
                 f"It raises over a limp with {sh(rg['bb_iso']):.0f}% of hands. Against your "
                 f"jam it " + L(_range_mix(game, "bb_vs_rejam_iso", rg["bb_iso"])) + "."]))
+        elif node == "sb_vs_3bet":
+            out.append(("The big blind's 3-bet", [
+                f"It 3-bets small with {sh(rg['bb_3bet']):.0f}% of hands (traps and bluffs). "
+                f"Against your jam it " + L(_range_mix(game, "bb_vs_4bet", rg["bb_3bet"])) + "."]))
         elif node == "bb_vs_raise":
             out.append(("The small blind's raise", [
                 f"It raises to {I.SB_RAISE_TO:g} bb with {sh(rg['raise']):.0f}% of hands. "
@@ -833,11 +905,23 @@ def game_info(spot):
             out.append(("Your whole range here", [
                 f"Raise {sh(rg['open']):.0f}%  ·  jam {sh(rg['jam']):.0f}%  ·  fold "
                 f"{max(0.0, 100 - sh(rg['open']) - sh(rg['jam'])):.0f}% of hands."]))
+        elif node == "open_vs_3bet":
+            i = spot.get("three", game["resp"][-1])
+            out.append((None, [
+                f"You raised to {I.OPEN_TO:g} bb and {pos[i]} 3-bet to {I.THREE_BET_TO:g} bb. "
+                f"Fold, call (the pot goes to the flop) or jam."]))
+            out.append((f"{pos[i]}'s 3-bet", [
+                f"It 3-bets small with {sh(rg['threebet'][i]):.0f}% of hands; against your jam "
+                f"it " + L(_range_mix(game, f"vs_4bet:{i}", rg["threebet"][i])) + "."]))
         else:
+            big = me == n - 1
             out.append((None, [
                 f"{pos[o]} ({st[o]:g} bb) raised to {I.OPEN_TO:g} bb. You can fold or jam"
-                + (", or call" if me == n - 1 else "") + ". Short raises like this mix traps "
-                f"(big hands that want you to jam) with good hands."]))
+                + (f", call (a trap: you close the action) or 3-bet to {I.THREE_BET_TO:g} bb"
+                   if big else "") + ". Short raises like this mix traps (big hands that want "
+                f"you to jam) with good hands." + ("" if big else " (With players still to act "
+                                                   "behind you, flatting invites a squeeze: it's "
+                                                   "jam or fold here.)")]))
             out.append((f"{pos[o]}'s raise", [
                 f"It raises {sh(rg['open']):.0f}% of hands here; against a re-jam it " +
                 L(_range_mix(game, "open_vs_rejam", rg["open"])) + "."]))
