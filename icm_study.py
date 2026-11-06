@@ -2665,6 +2665,8 @@ class ICMWindow:
             rp = risk_premiums(st, icm_value(pays))
             f["opps"] = [{"seat": pos[k], "stack": st[k], "mine": rp[me][k], "theirs": rp[k][me],
                           "covers": st[k] >= st[me]} for k in sp.get("live", [])]
+            f.update(need_chip=sp.get("need_chip"), need_icm=sp.get("need_icm"),
+                     press=sp.get("press"))
             f.update(to_call=sp.get("to_call", 0.0), pot=sp.get("pot", 0.0),
                      street=sp.get("street", "preflop"), eff=sp.get("eff", st[me]))
             return f
@@ -3184,7 +3186,25 @@ class ICMWindow:
             if sp.get(key):
                 fn(sp[key], head, line, C)
                 analysed = True
-        if f["to_call"] > 0 and not analysed:
+        if f.get("need_icm") is not None:
+            extra = f["need_icm"] - f["need_chip"]
+            head("Prize-money price")
+            line(f"Calling {f['to_call']:g} bb needs {100 * f['need_chip']:.1f}% equity in chips "
+                 f"and {100 * f['need_icm']:.1f}% in prize money ({100 * extra:+.1f} points). "
+                 + ("Call only what clears the prize-money number." if extra >= 0.03 else
+                    "ICM barely moves this price: play it close to chip EV."))
+        elif street != "preflop" and f.get("press") is not None:
+            press = f["press"]
+            head("Bluffing under ICM")
+            if press > 0.03:
+                line(f"You carry more risk than they do here ({100 * press:+.1f} points of "
+                     f"premium): bluff less, bet your value, and avoid big pots without it.")
+            elif press < -0.03:
+                line(f"They carry more risk than you ({100 * -press:.1f} points more premium): "
+                     f"they can't call light, so your bets and bluffs fold them more often.")
+            else:
+                line("The risk is about even between you: bet and bluff close to chip EV.")
+        if f["to_call"] > 0 and not analysed and f.get("need_icm") is None:
             need = f["to_call"] / (f["pot"] + f["to_call"])
             head("Pot odds")
             line(f"Calling {f['to_call']:g} bb into {f['pot']:g} bb needs {100 * need:.1f}% equity "

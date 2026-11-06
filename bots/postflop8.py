@@ -207,6 +207,15 @@ class Postflop8Mixin:
     cl_draw_max = 1.05   # flush draws / open-enders call bets up to this share of the pot
     cl_medium_big = 0.4  # weaker pairs call a big turn bet this often
     cl_river_medium = 0.35  # weaker pairs call a river bet this often (bluff-catchers)
+    # Prize money (a final table): icm_post(s) gives a PostICM (final_table.py) or None.
+    # Calls are priced in prize money; bluffs shrink as our risk premium against them
+    # outweighs theirs against us (gone at icm_bluff_scale) and grow (to 1.5x) when theirs
+    # is bigger; thin value needs our premium more equity; the continue rules hold only
+    # while ICM adds under icm_slack to the equity a call needs, or the hand still has it.
+    icm_post = None
+    icm_bluff_scale = 0.15
+    icm_slack = 0.03
+    _bf = 1.0            # (this decision's bluff factor)
     cont_rule = 0        # 1: never fold any pair, gutshot or better draw, or backdoor
     cont_min_bb = 15.0   #    flush draw to the c-bet, from this effective stack (bb)
 
@@ -423,7 +432,7 @@ class Postflop8Mixin:
                 if scary:
                     return "check", 0
                 good = self._made_class(hole, board) == "good"
-                p = self.rv_top_good if good else self.rv_top_weak
+                p = self.rv_top_good if good else self.rv_top_weak * self._semi()
                 return bet(self.bp_thin) if r < p else ("check", 0)
             if scary:
                 return bet(self.bp_small) if r < self.bp_top_bad else ("check", 0)
@@ -431,14 +440,14 @@ class Postflop8Mixin:
         if cls == "medium":
             if river:
                 return "check", 0
-            return bet(self.bp_small) if r < self.bp_medium else ("check", 0)
+            return bet(self.bp_small) if r < self.bp_medium * self._bf else ("check", 0)
         if river:          # missed draws and air: a big bluff now and then
-            return bet(self.bp_big) if r < self.rv_bluff else ("check", 0)
+            return bet(self.bp_big) if r < self.rv_bluff * self._bf else ("check", 0)
         if cls == "draw":
-            return bet(self.bp_small) if r < self.bp_draw else ("check", 0)
+            return bet(self.bp_small) if r < self.bp_draw * self._semi() else ("check", 0)
         flop_top = max(c >> 2 for c in board[:3])
         scare = new > flop_top and new >= 9
-        p = self.bp_scare if scare else self.bp_blank
+        p = (self.bp_scare if scare else self.bp_blank) * self._bf
         return bet(self.bp_small) if r < p else ("check", 0)
 
     @staticmethod
@@ -511,7 +520,17 @@ class Postflop8Mixin:
             return "call"
         return None
 
+    def _semi(self):
+        """Semi-bluffs (real equity) shrink half as fast as bluffs under ICM."""
+        return 0.5 + 0.5 * self._bf
+
     def postflop(self, s, hole, board):
+        icm = self.icm_post(s) if self.icm_post else None
+        rp = icm.max_premium() if icm else 0.0
+        press = icm.pressure() if icm else 0.0
+        # bluffs: fewer when we carry the risk, a few more when they do (capped at 1.5x)
+        self._bf = (min(1.5, max(0.0, 1.0 - press / self.icm_bluff_scale))
+                    if self.icm_bluff_scale else 1.0)
         opps = s.opponents
         shares = self.preflop_shares(s)
         specs = []
@@ -546,9 +565,9 @@ class Postflop8Mixin:
             elif cls == "good":
                 lead, size = r < self.donk_good, self.thin_size
             elif cls == "draw":
-                lead, size = r < self.donk_draw * min(1.0, bluff_mult), 0.5
+                lead, size = r < self.donk_draw * min(1.0, bluff_mult) * self._semi(), 0.5
             elif cls == "air":
-                lead, size = r < self.donk_air * min(1.0, bluff_mult), 0.5
+                lead, size = r < self.donk_air * min(1.0, bluff_mult) * self._bf, 0.5
             else:
                 lead, size = False, 0.0
             if lead:
@@ -563,8 +582,8 @@ class Postflop8Mixin:
                 p = self.cb_strong if cls == "strong" else self.cb_top
                 size = self.cbet_big
             else:
-                p = {"draw": self.cb_draw, "equity": self.cb_equity, "medium": self.cb_medium,
-                     "air": self.cb_air}[cls]
+                p = {"draw": self.cb_draw * self._semi(), "equity": self.cb_equity * self._bf,
+                     "medium": self.cb_medium * self._bf, "air": self.cb_air * self._bf}[cls]
                 size = self.cbet_small
             if r < p:
                 return self.raise_to(s, s.my_bet + size * pot)
@@ -576,34 +595,37 @@ class Postflop8Mixin:
         if s.to_call == 0:
             if eq >= self.value_big * f:
                 return self.raise_to(s, s.my_bet + self.value_size * pot)
-            thin = self.value_thin - self.thin_adapt * max(0.0, 0.45 - folds)
+            thin = self.value_thin - self.thin_adapt * max(0.0, 0.45 - folds) + 0.5 * rp
             if eq >= thin * f:
                 return self.raise_to(s, s.my_bet + self.thin_size * pot)
             if (not river and 0.38 * f <= eq < 0.55 * f and
-                    self.rng.random() < self.semi_bluff * bluff_mult):
+                    self.rng.random() < self.semi_bluff * bluff_mult * self._semi()):
                 return self.raise_to(s, s.my_bet + 0.5 * pot)
-            if river and eq < 0.15 and self.rng.random() < self.river_bluff * bluff_mult:
+            if river and eq < 0.15 and self.rng.random() < self.river_bluff * bluff_mult * self._bf:
                 return self.raise_to(s, s.my_bet + 0.7 * pot)
             if (self.cbet_bluff and k == 1 and len(board) == 3 and self._was_aggressor(s) and
-                    self.rng.random() < self.cbet_bluff * min(1.5, bluff_mult)):
+                    self.rng.random() < self.cbet_bluff * min(1.5, bluff_mult) * self._bf):
                 return self.raise_to(s, s.my_bet + 0.33 * pot)
             if (self.delayed_cbet and k == 1 and len(board) == 4 and self._delayed_spot(s) and
-                    self.rng.random() < self.delayed_cbet * min(1.5, bluff_mult)):
+                    self.rng.random() < self.delayed_cbet * min(1.5, bluff_mult) * self._bf):
                 return self.raise_to(s, s.my_bet + 0.45 * pot)
             if (self.barrel and k == 1 and len(board) == 4 and self._barrel_spot(s) and
-                    self.rng.random() < self.barrel * min(1.5, bluff_mult)):
+                    self.rng.random() < self.barrel * min(1.5, bluff_mult) * self._bf):
                 return self.raise_to(s, s.my_bet + 0.5 * pot)
             return "check", 0
 
+        need_chip, need_icm = icm.need(s.to_call) if icm else (None, None)
+        icm_extra = max(0.0, need_icm - need_chip) if icm else 0.0
+        icm_ok = icm_extra <= self.icm_slack or eq >= need_icm   # (rules may force a call)
         cb = self._cbet_spot(s) if (self.xr or self.cont_rule) else None
         if cb is not None:
             eff = min(s.my_stack + s.my_bet, cb.stack + cb.bet) / s.big_blind
             cls = self._made_class(hole, board)
             if self.xr and s.min_raise_to:
                 p_xr = {"strong": self.xr_value, "good": self.xr_good,
-                        "draw": self.xr_draw}.get(cls, 0.0)
+                        "draw": self.xr_draw * self._semi()}.get(cls, 0.0)
                 if cls == "air" and self._continue_hand(hole, board):
-                    p_xr = self.xr_air             # (air with a backdoor flush draw)
+                    p_xr = self.xr_air * self._bf  # (air with a backdoor flush draw)
                 if self.rng.random() < p_xr:
                     if self.rng.random() < self.xr_large_share:
                         to = s.opp_bet + pot + s.to_call            # about pot
@@ -612,13 +634,13 @@ class Postflop8Mixin:
                     if to >= 0.6 * (s.my_stack + s.my_bet):
                         to = s.max_raise_to                       # (that much: all in)
                     return self.raise_to(s, to)
-                if cls in ("strong", "good"):
+                if cls in ("strong", "good") and icm_ok:
                     return "call", 0               # (the rest of them: call)
-            if (self.cont_rule and eff >= self.cont_min_bb and
+            if (self.cont_rule and icm_ok and eff >= self.cont_min_bb and
                     s.to_call < 0.5 * s.my_stack and self._continue_hand(hole, board)):
                 return "call", 0
 
-        if self.cont_later:
+        if self.cont_later and icm_ok:
             d = self._later_defence(s, hole, board, pot)
             if d == "call":
                 # (strong hands may still raise: the usual logic decides that first)
@@ -629,6 +651,7 @@ class Postflop8Mixin:
 
         to_call = min(s.to_call, s.my_stack) if self.small_bet_margin else s.to_call
         need = to_call / (pot + to_call)   # (all-in for less: the price is what you put in)
+        need += icm_extra                  # (prize money: the risk premium on this call)
         if (self.need_equity and eq < 0.55 * f and not has_equity(hole, board) and
                 not (self.small_bet_margin and need <= 0.15)):
             return "fold", 0  # nothing to continue with: no pair, no draw, no overcards

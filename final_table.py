@@ -1026,6 +1026,9 @@ def price_guard(s, move):
         return move
     to_call = min(s.to_call, s.my_stack)          # (all-in for less: what you put in)
     need = to_call / (live_pot(s) + to_call)
+    icm = post_icm(s)
+    if icm is not None:          # (after the flop at a final table: the prize-money price)
+        need = max(need, icm.need(s.to_call)[1])
     if s.street == "preflop":
         if I.hand_class(*s.hole) in PREMIUMS:
             if s.min_raise_to and s.max_raise_to <= 40 * s.big_blind:
@@ -1154,8 +1157,101 @@ def commit_jam(s, move):
     return move
 
 
+class PostICM:
+    """Prize money after the flop at a final table: what calling a bet needs (ICM, not
+    chips), and the risk premium against each opponent (how much more equity than chips
+    an all-in against them needs). Outcomes are settled as if the hand ended now."""
+
+    def __init__(self, s, pays):
+        self.s, self.pays = s, list(pays)
+        self.idx = {p.seat: k for k, p in enumerate(s.players)}
+        self.stacks = [float(p.stack) for p in s.players]
+        self.me = self.idx[s.my_seat]
+        self._rp = {}
+
+    def _value(self, st, who=None):
+        return I.icm(st, self.pays)[self.me if who is None else who]
+
+    def need(self, to_call, opp_seat=None):
+        """(chip need, ICM need) to call `to_call` (capped at our stack) into the pot, the
+        bettor `opp_seat` (default: the biggest bet) taking the pot when we fold."""
+        s = self.s
+        if opp_seat is None:
+            opp_seat = max((p for p in s.players if p.seat != s.my_seat and not p.folded),
+                           key=lambda p: p.bet).seat
+        o, me = self.idx[opp_seat], self.me
+        c = min(to_call, s.my_stack)
+        refund = to_call - c
+        pot = s.pot - refund
+        chip = c / (pot + c) if pot + c > 0 else 0.0
+        fold, win, lose = list(self.stacks), list(self.stacks), list(self.stacks)
+        fold[o] += pot + refund
+        win[me] += pot
+        win[o] += refund
+        lose[me] -= c
+        lose[o] += pot + c + refund
+        vf, vw, vl = self._value(fold), self._value(win), self._value(lose)
+        span = vw - vl
+        return chip, ((vf - vl) / span if span > 1e-9 else chip)
+
+    def _premium(self, a, b):
+        """Extra equity (over chips) player index a needs to call an all-in of the
+        effective stack from b into the pot as it is now (0 or more)."""
+        key = (a, b)
+        if key not in self._rp:
+            c = min(self.stacks[a], self.stacks[b])
+            if c <= 0:
+                self._rp[key] = 0.0
+            else:
+                P = self.s.pot
+                fold, win, lose = list(self.stacks), list(self.stacks), list(self.stacks)
+                fold[b] += P
+                win[a] += P + c
+                win[b] -= c
+                lose[a] -= c
+                lose[b] += P + c
+                vf, vw, vl = (self._value(x, a) for x in (fold, win, lose))
+                span = vw - vl
+                icm_need = (vf - vl) / span if span > 1e-9 else 0.5
+                self._rp[key] = max(0.0, icm_need - c / (P + 2 * c))
+        return self._rp[key]
+
+    def risk_premium(self, opp_seat):
+        """Our risk premium against `opp_seat` (what we need extra to call their all-in)."""
+        return self._premium(self.me, self.idx[opp_seat])
+
+    def their_premium(self, opp_seat):
+        """Theirs against us (what they need extra to call ours)."""
+        return self._premium(self.idx[opp_seat], self.me)
+
+    def pressure(self):
+        """Ours minus theirs, against whoever still in the hand it's worst: > 0 means we
+        carry the risk (bluff less), < 0 means they do (they can't call light)."""
+        s = self.s
+        live = [p.seat for p in s.players if p.seat != s.my_seat and not p.folded]
+        return max((self.risk_premium(x) - self.their_premium(x) for x in live), default=0.0)
+
+    def max_premium(self):
+        """Our biggest risk premium against anyone still in the hand."""
+        s = self.s
+        return max((self.risk_premium(p.seat) for p in s.players
+                    if p.seat != s.my_seat and not p.folded), default=0.0)
+
+
+def post_icm(s):
+    """A PostICM for this decision at a final table (after the flop), else None."""
+    table = POLICY.get("table")
+    if not POLICY["on"] or not POLICY.get("icm", True) or table is None or s.street == "preflop":
+        return None
+    n = len(s.players)
+    if n < 2:
+        return None
+    return PostICM(s, table.pays(n))
+
+
 def with_open_policy(bot):
     """The bot, following the final table's preflop rules whenever they're on."""
+    bot.icm_post = post_icm        # (after the flop: prize-money prices, see PostICM)
     act = bot.act
     def play(s):
         m0 = iso_size(s, act(s))
@@ -1195,6 +1291,11 @@ def coach_spot(s, table):
         live = [k for k, p in enumerate(order) if not p.folded and k != me]
         out.update(kind="info", live=live, to_call=s.to_call / s.big_blind,
                    pot=s.pot / s.big_blind, eff=_eff_bb(s), board=list(s.board))
+        if s.street != "preflop" and len(s.players) >= 2:
+            pic = PostICM(s, table.pays(len(s.players)))
+            if s.to_call:
+                out["need_chip"], out["need_icm"] = pic.need(s.to_call)
+            out["press"] = pic.pressure()
         return out
     out.update(kind=sp["kind"], jammer=sp["jammer"], kw=sp["kw"], eff=sp["eff"],
                opener=sp.get("opener"), game=sp.get("game"), node=sp.get("node"))
