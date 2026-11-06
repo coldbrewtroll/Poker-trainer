@@ -29,6 +29,26 @@ from cards import name as card_name  # noqa: E402
 from engine import new_deck  # noqa: E402
 from engine8 import Game8  # noqa: E402
 
+# The bots' postflop equity runs for a time budget on the desktop (about 16 samples there).
+# Here the same hand is replayed after each of your moves, so it must play the same way
+# every time and on every phone: a fixed sample count, about the desktop's strength.
+from bots import postflop as _pf, postflop8 as _pf8  # noqa: E402
+
+_pf8.FIXED_SAMPLES = 20
+
+
+class _Clock:
+    """A clock that ticks per look, for the heads-up equity (it has no fixed-count mode)."""
+    t = 0.0
+
+    @classmethod
+    def perf_counter(cls):
+        cls.t += 0.00004
+        return cls.t
+
+
+_pf.time = _Clock
+
 BB = match8.BIG_BLIND
 POOLS = {"$500K": 500_000, "$1M": 1_000_000, "$1.5M": 1_500_000}
 
@@ -69,6 +89,7 @@ class Recorder:
         else:
             mv = self.bot.act(s)
         g.log(s, mv)
+        g.trace.append((s, mv))
         return mv
 
 
@@ -81,6 +102,8 @@ class WebGame:
         self.app = None
         self.analyst = None
         self.icm_stats = {"spots": 0, "right": 0, "lost": 0.0}
+        self.history = []        # your last hands, for the review (newest last)
+        self.reviewer = None     # a separate analyst for hand trees
 
     # -- a session --
     def new(self, table=None, pool="$1M", level_hands=30, skip=True, seed=None):
@@ -107,6 +130,7 @@ class WebGame:
         self.app = app
         self.icm_stats = {"spots": 0, "right": 0, "lost": 0.0}
         self.hand = None
+        self.history = []
         return self.view()
 
     # -- a hand --
@@ -117,8 +141,10 @@ class WebGame:
         seats, b, stacks = ft.start_hand()
         self.hand = {"seats": seats, "button": b, "stacks": list(stacks),
                      "deck": new_deck(self.rng), "no": ft.hands, "note": ft.note,
+                     "seed": self.rng.randrange(2 ** 31),
                      "skipped": False, "graded": []}
         self.moves = []
+        self.meta = []           # per move of yours: the bot's play and your grade (None: auto)
         self.app.hand_key += 1
         return self.run()
 
@@ -151,8 +177,8 @@ class WebGame:
         self.phys_of = dict(enumerate(seats))
         self.hero_k = seats.index(0) if 0 in seats else None
         while True:
-            self.events, self.hero_i, self.final_run = [], 0, False
-            random.seed(h["no"] * 7919 + len(self.moves))
+            self.events, self.trace, self.hero_i, self.final_run = [], [], 0, False
+            random.seed(h["seed"])   # the same every replay: what happened stays the same
             recs = [Recorder(self, x, None if x == 0 else self.bots[x]) for x in seats]
             g = Game8(recs, big_blind=BB, ante=BB, ante_mode="bb", time_limit_s=1e9)
             try:
@@ -163,6 +189,7 @@ class WebGame:
                 s = e.state
                 if self.skip and self.clear_fold(s):
                     self.moves.append(("fold", 0))
+                    self.meta.append(None)
                     h["skipped"] = True
                     continue
                 self.decision = s
@@ -172,6 +199,7 @@ class WebGame:
         r = next((x.result for x in recs if x.result), None)
         info = ft.finish_hand(seats, h["stacks"], res)
         h["result"] = self.result_view(r, res, info)
+        self.keep_for_review()
         return self.view()
 
     def clear_fold(self, s):
@@ -189,11 +217,12 @@ class WebGame:
             return self.view()
         move = (move[0], int(move[1]))
         self.hand["graded"].append(self.grade(s, move))
+        self.meta.append({"adv": self.last_adv, "graded": len(self.hand["graded"]) - 1})
         self.moves.append(move)
         return self.run()
 
     def grade(self, s, move):
-        adv = self.advisor_move(s)
+        adv = self.last_adv = self.advisor_move(s)
         same = T.kind(move, s) == T.kind(adv, s)
         if same and T.kind(move, s) == "Raise":
             def to(m):
@@ -260,6 +289,93 @@ class WebGame:
                           "style": "title" if size >= 14 else "head" if size == 11 else
                           "bold" if len(font) > 2 else "text"})
         return {"lines": lines}
+
+    # -- reviewing a hand: the hand tree --
+    def keep_for_review(self):
+        h = self.hand
+        self.history.append({
+            "no": h["no"], "trace": list(self.trace), "meta": list(self.meta),
+            "phys_of": dict(self.phys_of), "seats": list(h["seats"]),
+            "graded": list(h["graded"]), "result": h["result"], "tree": None,
+            "start": {str(h["seats"][k]): bbs(st) for k, st in enumerate(h["stacks"])},
+            "hole": self.hole(), "level": self.ft.blinds()})
+        del self.history[:-20]
+
+    def hole(self):
+        h = self.hand
+        hk = h["seats"].index(0) if 0 in h["seats"] else None
+        return ([card_name(h["deck"][2 * hk]), card_name(h["deck"][2 * hk + 1])]
+                if hk is not None else None)
+
+    def review(self, no=None):
+        """A hand you played (the last one unless `no`): every decision as the desktop
+        trainer's hand tree draws it, each player's range and what the bots' strategy does
+        with all of it, your grades, and the showdown."""
+        if not self.history:
+            return {"hands": [], "tree": None}
+        e = next((x for x in self.history if x["no"] == no), self.history[-1])
+        if e["tree"] is None:
+            e["tree"] = self.build_tree(e)
+        r = e["result"] or {}
+        listing = [{"no": x["no"], "hole": x["hole"], "won": x["result"]["won"].get("0")
+                    if x["result"] else None} for x in reversed(self.history)]
+        return {"hands": listing, "no": e["no"], "tree": e["tree"], "hole": e["hole"],
+                "start": e["start"], "level": e["level"], "board": r.get("board", []),
+                "shown": r.get("shown", {}), "won": r.get("won", {}),
+                "names": {str(x): self.ft.name(x) for x in e["seats"]}}
+
+    def build_tree(self, e):
+        if self.reviewer is None:
+            self.reviewer = T.Analyst()
+        an = self.reviewer
+        an.new_hand(e["no"])
+        shown = (e["result"] or {}).get("shown", {})
+        out, k = [], 0
+        for s, mv in e["trace"]:
+            phys = e["phys_of"][s.my_seat]
+            hero = phys == 0
+            meta = None
+            if hero:
+                meta = e["meta"][k] if k < len(e["meta"]) else None
+                k += 1
+            try:
+                node = an.analyse(s, mv, meta["adv"] if meta else None, auto=hero and not meta)
+            except Exception:
+                node = None
+            if not node:
+                if hero or T.describe(mv, s) != "Fold":   # (others' folds aren't drawn)
+                    out.append(self.plain_node(s, mv, phys, hero))
+                continue
+            keys = [o[0] for o in node["options"]]
+            opts = [{"label": lab or T.key_label(key), "pct": round(pct, 1), "col": col,
+                     "chosen": key == node["chosen"], "bot": hero and key == node["bot"]}
+                    for key, lab, pct, col in node["options"]]
+            if node["chosen"] not in keys:      # your move isn't in the strategy at all
+                opts.append({"label": T.describe(mv, s), "pct": 0.0, "col": "#6b7385",
+                             "chosen": True, "bot": False})
+            grid = None
+            if node.get("cells") and s.street == "preflop":
+                grid = {hand: [[keys.index(key), round(f, 3)] for key, f in cell.items()
+                               if key in keys]
+                        for hand, cell in node["cells"].items()}
+            item = {"street": s.street, "board": list(s.board), "seat": phys, "hero": hero,
+                    "pos": s.position, "name": "You" if hero else self.ft.name(phys),
+                    "pot": bbs(s.pot), "range": round(node["range"], 1), "options": opts,
+                    "did": T.describe(mv, s), "grid": grid, "auto": hero and not meta,
+                    "cards": (list(s.hole) if hero else shown.get(str(phys)))}
+            if meta is not None:
+                g = e["graded"][meta["graded"]]
+                item.update(caption=g["caption"], colour=g["colour"], hint=g["hint"],
+                            icm=g.get("icm"), icm_right=g.get("icm_right"))
+            out.append(item)
+        return out
+
+    def plain_node(self, s, mv, phys, hero):
+        """A decision without the range analysis (it failed): just what was done."""
+        return {"street": s.street, "board": list(s.board), "seat": phys, "hero": hero,
+                "pos": s.position, "name": "You" if hero else self.ft.name(phys),
+                "pot": bbs(s.pot), "range": None, "options": [], "did": T.describe(mv, s),
+                "grid": None, "auto": False, "cards": list(s.hole) if hero else None}
 
     # -- what the page shows --
     def result_view(self, r, res, info):
@@ -428,6 +544,8 @@ def handle(msg):
         out = g.act(m["move"])
     elif cmd == "coach":
         out = g.coach(bool(m.get("deep")))
+    elif cmd == "review":
+        out = g.review(m.get("no"))
     elif cmd == "charts":
         out = set_charts(m.get("folder"))
     elif cmd == "skip":

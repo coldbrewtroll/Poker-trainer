@@ -4,7 +4,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const SUITS = { s: "♠", h: "♥", d: "♦", c: "♣" };
+const SUITS = { s: "♠\uFE0E", h: "♥\uFE0E", d: "♦\uFE0E", c: "♣\uFE0E" };
 // physical seat -> spot around the table (you at the bottom, then clockwise)
 const SEAT_XY = [[50, 86], [22, 78], [10.5, 52], [10.5, 25], [50, 13], [89.5, 25], [89.5, 52], [78, 78]];
 // bet chips and the dealer button: px offsets from each seat's centre
@@ -373,6 +373,11 @@ function drawActions() {
     $("btnCoach").disabled = false;
     $("btnCoach").style.opacity = 1;
   } else {
+    const rv = document.createElement("button");
+    rv.className = "review";
+    rv.textContent = "Review";
+    rv.onclick = () => openReview();
+    box.appendChild(rv);
     const b = document.createElement("button");
     b.className = "next";
     b.textContent = "Next hand";
@@ -564,7 +569,8 @@ function showOver() {
     how === "bust" ? `You finished ${place}${place === 1 ? "st" : place === 2 ? "nd" : place === 3 ? "rd" : "th"}: ${money(prize)}` :
     `Session ended: your seat was worth ${money(prize)}`;
   openSheet("Session over", `<p class="c-title">${text}</p><p class="c-text">ICM decisions right: ${V.icm_stats.right} / ${V.icm_stats.spots} · mistakes cost ${money(V.icm_stats.lost)}</p>` +
-    `<button class="bigbtn" onclick="newSession()">New session</button>`);
+    `<button class="bigbtn" onclick="newSession()">New session</button>` +
+    `<button class="bigbtn alt" onclick="openReview()">Review the last hand</button>`);
 }
 
 $("btnMenu").onclick = openSettings;
@@ -601,4 +607,104 @@ async function start() {
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+// ---------------------------------------------------------------- reviewing a hand
+const RANKS = "AKQJT98765432";
+const cardHTML = (c, cls = "") => c ? `<span class="card ${c[1]} ${cls}"><span class="r">${c[0] === "T" ? "10" : c[0]}</span><span class="u">${SUITS[c[1]]}</span></span>` : "";
+const signed = (x) => (x > 0 ? "+" : "") + fmt(x);
+
+async function openReview(no) {
+  if (busy) return;
+  openSheet("Hand review", `<p class="c-text">Building the hand tree…</p>`);
+  let r;
+  try { r = await call({ cmd: "review", no: no === undefined ? null : no }); }
+  catch (e) { $("sheetcontent").innerHTML = `<p class="c-text">Couldn't build the review: ${esc(e.message)}</p>`; return; }
+  if (!r.tree) { $("sheetcontent").innerHTML = `<p class="c-text">Play a hand first: your last 20 hands show up here.</p>`; return; }
+  $("sheettitle").textContent = `Hand review · #${r.no}`;
+  $("sheetcontent").innerHTML = reviewHTML(r);
+  for (const b of document.querySelectorAll(".rv-hands button")) b.onclick = () => openReview(Number(b.dataset.no));
+  for (const n of document.querySelectorAll(".rv-node[data-i]")) n.onclick = () => toggleGrid(n, r.tree[Number(n.dataset.i)], r);
+  const on = document.querySelector(".rv-hands button.on");
+  if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
+}
+
+function reviewHTML(r) {
+  let h = `<div class="rv-hands">` + r.hands.map((x) =>
+    `<button data-no="${x.no}" class="${x.no === r.no ? "on" : ""}">#${x.no} ${x.hole ? x.hole.map((c) => (c[0] === "T" ? "10" : c[0]) + SUITS[c[1]]).join("") : "–"}` +
+    `<i class="${x.won > 0 ? "win" : x.won < 0 ? "lose" : ""}">${x.won ? signed(x.won) : "0"}</i></button>`).join("") + `</div>`;
+  const me = r.won["0"];
+  h += `<div class="rv-sum">${r.hole ? r.hole.map((c) => cardHTML(c, "small")).join("") : ""}` +
+    `<span>${esc(r.level)}${me !== undefined ? ` · <b class="${me > 0 ? "win" : me < 0 ? "lose" : ""}">${me ? signed(me) + " bb" : "no change"}</b>` : ""}</span></div>`;
+  h += `<div class="rv-legend">Tap a preflop decision for its range grid · <span class="dot"></span> the bot's play</div>`;
+  h += `<div class="rv-tree"><div class="rv-pill">Start · ${Object.keys(r.start).length}-handed</div>`;
+  let street = "preflop";
+  r.tree.forEach((n, i) => {
+    if (n.street !== street) {
+      street = n.street;
+      const from = { flop: 0, turn: 3, river: 4 }[street];
+      h += `<div class="rv-pill street"><b>${street.toUpperCase()}</b>${n.board.slice(from).map((c) => cardHTML(c, "small")).join("")}</div>`;
+    }
+    h += nodeHTML(n, i);
+  });
+  // showdown and the result
+  const shown = Object.entries(r.shown || {});
+  h += `<div class="rv-pill street"><b>RESULT</b>${(r.board || []).map((c) => cardHTML(c, "small")).join("")}</div>`;
+  h += `<div class="rv-result">` + Object.entries(r.won).filter(([, v]) => v).sort((a, b) => b[1] - a[1]).map(([x, v]) =>
+    `<div class="row${x === "0" ? " me" : ""}"><span>${esc(x === "0" ? "You" : r.names[x] || "Seat " + x)} ` +
+    `${(r.shown[x] || []).map((c) => cardHTML(c, "small")).join("")}</span><span class="${v > 0 ? "win" : "lose"}">${signed(v)} bb</span></div>`).join("") +
+    (shown.length ? "" : `<p class="c-text" style="color:var(--dim)">No showdown.</p>`) + `</div></div>`;
+  return h;
+}
+
+function nodeHTML(n, i) {
+  const cards = (n.cards || []).map((c) => cardHTML(c, "small")).join("");
+  let h = `<div class="rv-node${n.hero ? " hero" : ""}"${n.grid ? ` data-i="${i}"` : ""}>` +
+    `<div class="rv-head"><span class="badge">${esc(n.pos)}</span><span class="who">${esc(n.name)}</span>${cards}` +
+    `<span class="pot">Pot ${fmt(n.pot)} bb</span></div>`;
+  if (n.options.length) {
+    h += `<div class="rv-range">Range ${n.range !== null ? Math.round(n.range) + "% of hands" : ""}</div><div class="rv-bar">` +
+      n.options.filter((o) => o.pct >= 0.5).map((o) => `<span style="width:${o.pct}%;background:${o.col}">${o.pct >= 12 ? Math.round(o.pct) + "%" : ""}</span>`).join("") + `</div>`;
+    h += `<div class="rv-opts">` + n.options.map((o) =>
+      `<span class="${o.chosen ? "on" : ""}" style="--c:${o.col}">${esc(o.label)}<small>${Math.round(o.pct)}%</small>${o.bot ? `<i class="dot"></i>` : ""}</span>`).join("") + `</div>`;
+  } else {
+    h += `<div class="rv-range">${esc(n.did)}</div>`;
+  }
+  if (n.hero) {
+    if (n.auto) h += `<div class="rv-cap" style="color:var(--dim)">Clear fold: folded for you (Skip folds)</div>`;
+    else if (n.caption) h += `<div class="rv-cap" style="color:${n.colour}">${esc(n.caption)}${n.hint && n.hint !== n.did ? ` · bot: ${esc(n.hint)}` : ""}</div>`;
+    if (n.icm) h += `<div class="rv-icm ${n.icm_right ? "ok" : "bad"}">${n.icm_right ? "✔" : "✖"} ${esc(n.icm)}</div>`;
+  }
+  if (n.grid) h += `<div class="rv-more">range grid ▾</div>`;
+  return h + `</div>`;
+}
+
+function toggleGrid(el, n, r) {
+  const open = el.querySelector(".rv-grid");
+  if (open) { open.remove(); el.querySelector(".rv-more").textContent = "range grid ▾"; return; }
+  const mine = n.hero && r.hole ? handType(r.hole) : n.cards ? handType(n.cards) : null;
+  let g = `<div class="rv-grid">`;
+  for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+    const t = i === j ? RANKS[i] + RANKS[j] : i < j ? RANKS[i] + RANKS[j] + "s" : RANKS[j] + RANKS[i] + "o";
+    const mix = n.grid[t];
+    let bg = "#1b1f28";
+    if (mix && mix.length) {
+      let at = 0;
+      const stops = mix.map(([k, f]) => { const c = n.options[k].col, a = at; at += f * 100; return `${c} ${a}% ${at}%`; });
+      if (at < 99.5) stops.push(`#1b1f28 ${at}% 100%`);
+      bg = `linear-gradient(90deg, ${stops.join(", ")})`;
+    }
+    g += `<span class="${t === mine ? "mine" : ""}${mix ? "" : " out"}" style="background:${bg}">${t}</span>`;
+  }
+  g += `</div><div class="rv-key">` + n.options.map((o) => `<span><i style="background:${o.col}"></i>${esc(o.label)}</span>`).join("") + `</div>`;
+  el.insertAdjacentHTML("beforeend", g);
+  el.querySelector(".rv-more").textContent = "range grid ▴";
+}
+
+function handType(cs) {
+  const [a, b] = cs;
+  const ia = RANKS.indexOf(a[0]), ib = RANKS.indexOf(b[0]);
+  if (ia === ib) return a[0] + b[0];
+  const [hi, lo] = ia < ib ? [a, b] : [b, a];
+  return hi[0] + lo[0] + (a[1] === b[1] ? "s" : "o");
 }
