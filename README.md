@@ -4,7 +4,7 @@ A practice table for No-Limit Hold'em tournaments: play hands against bots that 
 real solver ranges (MonkerSolver, 15-60 bb), get a hand-by-hand grade, and play whole
 WSOP-Circuit-style final tables with an ICM Coach that explains every decision.
 
-**Play in your browser (iPhone and Android too):** https://coldbrewtroll.github.io/poker-trainer/
+**Play in your browser (iPhone and Android too):** https://coldbrewtroll.github.io/Poker-trainer/
 — the Final table mode with the ICM Coach, nothing to install. On iPhone open it in Safari,
 then Share → Add to Home Screen to keep it like an app.
 
