@@ -300,8 +300,14 @@ async function showResult() {
   const h = V.hand, r = h.result;
   const [beat] = SPEEDS[settings.speed] || SPEEDS.Normal;
   // the pot that was played for: an uncalled bet goes back to whoever made it
-  const put = Object.keys(seat).map((x) => Math.max(0, (h.start[x] || 0) - (seat[x].stack || 0))).sort((a, b) => b - a);
-  if (put.length > 1) pot = put.reduce((a, b) => a + b, 0) - (put[0] - put[1]);
+  // (the big blind ante is dead money: it isn't matched, so it's left out of the matching)
+  let total = 0;
+  const put = Object.keys(seat).map((x) => {
+    const c = Math.max(0, (h.start[x] || 0) - (seat[x].stack || 0));
+    total += c;
+    return h.positions[x] === "BB" ? Math.max(0, c - Math.min(1, h.start[x] || 0)) : c;
+  }).sort((a, b) => b - a);
+  if (put.length > 1) pot = total - (put[0] - put[1]);
   for (const x in seat) { seat[x].bet = 0; }
   for (const [x, cards] of Object.entries(r.shown)) { if (seat[x]) seat[x].cards = cards; }
   const ro = r.runout;

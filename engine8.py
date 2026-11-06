@@ -155,7 +155,10 @@ class Game8:
             if sum(1 for s in range(n) if not folded[s]) == 1:
                 break
 
-        result = self._settle(holes, board_cards, committed, folded)
+        # A big blind ante is dead money: it goes in the pot, nobody matches it (in the
+        # everyone-antes format all antes are equal, so matching them changes nothing).
+        result = self._settle(holes, board_cards, committed, folded,
+                              antes if self.ante_mode == "bb" else None)
         shown = {s: [name(c) for c in holes[s]] for s in range(n)
                  if not folded[s] and sum(not f for f in folded) > 1}
         for seat in range(n):
@@ -170,16 +173,25 @@ class Game8:
         return result
 
     @staticmethod
-    def _settle(holes, board_cards, committed, folded):
-        """Main pot and side pots by all-in level; each goes to the best eligible hand."""
+    def _settle(holes, board_cards, committed, folded, antes=None):
+        """Main pot and side pots by all-in level; each goes to the best eligible hand.
+        antes: dead money (the big blind ante) inside `committed`: it isn't matched, it
+        goes to the main pot, which every player still in can win."""
         n = len(holes)
         won = [0.0] * n
         scores = {s: evaluate(holes[s] + board_cards) for s in range(n) if not folded[s]}
-        levels = sorted({c for c in committed if c > 0})
+        dead = sum(antes) if antes else 0
+        live = [c - a for c, a in zip(committed, antes)] if antes else list(committed)
+        if dead and scores:      # the dead money: anyone still in can win it
+            best = max(scores.values())
+            winners = [s for s in scores if scores[s] == best]
+            for s in winners:
+                won[s] += dead / len(winners)
+        levels = sorted({c for c in live if c > 0})
         prev = 0
         for level in levels:
-            layer = sum(min(c, level) - min(c, prev) for c in committed)
-            eligible = [s for s in scores if committed[s] >= level]
+            layer = sum(min(c, level) - min(c, prev) for c in live)
+            eligible = [s for s in scores if live[s] >= level]
             if not eligible:  # only folded money at this level: goes to the live players
                 eligible = list(scores)
             best = max(scores[s] for s in eligible)
