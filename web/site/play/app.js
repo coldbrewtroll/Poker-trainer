@@ -268,15 +268,7 @@ async function playEvents() {
   const [beat, foldBeat] = SPEEDS[settings.speed] || SPEEDS.Normal;
   while (shownEvents < h.events.length) {
     const e = h.events[shownEvents++];
-    if (e.board.length > board.length) {           // a new street: bets into the pot, cards
-      for (const x in seat) { seat[x].bet = 0; if (!seat[x].folded && seat[x].kind !== "allin") seat[x].act = null; }
-      board.dealt = new Set();
-      for (let i = board.length; i < e.board.length; i++) board.dealt.add(i);
-      board = Object.assign(e.board.slice(), { dealt: board.dealt });
-      turn = null;
-      draw();
-      await sleep(beat * 0.9);
-    }
+    if (e.board.length > board.length) await newStreet(e.board, beat);
     turn = e.seat;
     seat[e.seat] = Object.assign(seat[e.seat] || {}, {
       stack: e.stack, bet: e.bet, folded: e.kind === "fold", act: e.label, kind: e.kind });
@@ -284,7 +276,24 @@ async function playEvents() {
     draw();
     if (e.seat !== 0) await sleep(e.kind === "fold" ? foldBeat : beat);
   }
+  // your turn first on a new street (nobody has acted on it yet): deal it before you act
+  const d = V.decision;
+  if (d && d.board && d.board.length > board.length) {
+    await newStreet(d.board, beat);
+    if (d.pot) pot = d.pot;
+    draw();
+  }
   turn = null;
+}
+
+async function newStreet(cards, beat) {   // a new street: bets into the pot, then the cards
+  for (const x in seat) { seat[x].bet = 0; if (!seat[x].folded && seat[x].kind !== "allin") seat[x].act = null; }
+  const dealt = new Set();
+  for (let i = board.length; i < cards.length; i++) dealt.add(i);
+  board = Object.assign(cards.slice(), { dealt });
+  turn = null;
+  draw();
+  await sleep(beat * 0.9);
 }
 
 async function showResult() {
