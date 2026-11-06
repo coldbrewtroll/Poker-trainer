@@ -161,6 +161,18 @@ class Postflop8Mixin:
     donk_good = 0.3
     donk_draw = 0.35
     donk_air = 0.03
+    donk_texture = 0     # 1: lead only on flops that hit the caller's range (nine-high or
+    #                      lower, unpaired, connected); everywhere else check it all
+    # Facing the preflop raiser's flop c-bet after checking to them, heads-up:
+    xr = 0               # 1: check-raise small (xr_small x the bet) or large (about pot)
+    xr_value = 0.85      # ... with sets / two pair / trips this often (else call)
+    xr_good = 0.12       # ... with an overpair / good top pair
+    xr_draw = 0.35       # ... with a flush draw / open-ender / gutshot (a semi-bluff)
+    xr_air = 0.05        # ... with no pair or draw but a backdoor flush draw (a bluff)
+    xr_small = 3.0       # small check-raise: to this many times the bet
+    xr_large_share = 0.5  # share of check-raises that are large (about pot)
+    cont_rule = 0        # 1: never fold any pair, gutshot or better draw, or backdoor
+    cont_min_bb = 15.0   #    flush draw to the c-bet, from this effective stack (bb)
 
     @staticmethod
     def _was_aggressor(s):
@@ -252,6 +264,52 @@ class Postflop8Mixin:
                 return "draw"
         return "air"
 
+    @staticmethod
+    def _caller_texture(board):
+        """A flop that hits the preflop caller's range more than the raiser's: nine-high or
+        lower, unpaired, all three ranks within five (e.g. 8-7-5, 6-4-3, 9-7-5)."""
+        br = sorted({c >> 2 for c in board[:3]})
+        return len(br) == 3 and br[-1] <= 7 and br[-1] - br[0] <= 4
+
+    @staticmethod
+    def _cbet_spot(s):
+        """Flop, heads-up: we checked, the preflop raiser bet, and it's on us."""
+        if s.street != "flop" or not s.to_call:
+            return None
+        live = [p for p in s.players if not p.folded]
+        if len(live) != 2:
+            return None
+        agg = None
+        for st, seat, a, _ in s.history:
+            if st == "preflop" and a == "raise":
+                agg = seat
+        fl = [(seat, a) for st, seat, a, _ in s.history if st == "flop"]
+        if agg is None or agg == s.my_seat or fl != [(s.my_seat, "check"), (agg, "raise")]:
+            return None
+        return next(p for p in s.players if p.seat == agg)
+
+    @staticmethod
+    def _continue_hand(hole, board):
+        """Any pair (ours), any gutshot or better straight draw, any flush draw or backdoor
+        flush draw (three of a suit with one of ours)."""
+        hr = [c >> 2 for c in hole]
+        br = [c >> 2 for c in board]
+        if hr[0] == hr[1] or any(r in br for r in hr):
+            return True
+        suits = [c & 3 for c in hole + board]
+        for st in range(4):
+            if suits.count(st) >= 3 and any((c & 3) == st for c in hole):
+                return True
+        ranks = set(hr + br)
+        if 12 in ranks:
+            ranks.add(-1)
+        mine = set(hr) | ({-1} if 12 in hr else set())
+        for lo in range(-1, 9):
+            window = set(range(lo, lo + 5))
+            if len(window & ranks) >= 4 and window & mine:
+                return True
+        return False
+
     def postflop(self, s, hole, board):
         opps = s.opponents
         shares = self.preflop_shares(s)
@@ -279,6 +337,8 @@ class Postflop8Mixin:
         if s.to_call == 0 and self.donk_check and self._donk_spot(s):
             r = self.rng.random()
             cls = self._made_class(hole, board)
+            if self.donk_texture and not self._caller_texture(board):
+                return "check", 0          # (check it all: strong hands check-raise)
             # (by hand type: the quick equity estimate is too noisy to sort one-pair hands)
             if cls == "strong":
                 lead, size = r < self.donk_strong, self.value_size
@@ -315,6 +375,29 @@ class Postflop8Mixin:
                     self.rng.random() < self.barrel * min(1.5, bluff_mult)):
                 return self.raise_to(s, s.my_bet + 0.5 * pot)
             return "check", 0
+
+        cb = self._cbet_spot(s) if (self.xr or self.cont_rule) else None
+        if cb is not None:
+            eff = min(s.my_stack + s.my_bet, cb.stack + cb.bet) / s.big_blind
+            cls = self._made_class(hole, board)
+            if self.xr and s.min_raise_to:
+                p_xr = {"strong": self.xr_value, "good": self.xr_good,
+                        "draw": self.xr_draw}.get(cls, 0.0)
+                if cls == "air" and self._continue_hand(hole, board):
+                    p_xr = self.xr_air             # (air with a backdoor flush draw)
+                if self.rng.random() < p_xr:
+                    if self.rng.random() < self.xr_large_share:
+                        to = s.opp_bet + pot + s.to_call            # about pot
+                    else:
+                        to = self.xr_small * s.opp_bet
+                    if to >= 0.6 * (s.my_stack + s.my_bet):
+                        to = s.max_raise_to                       # (that much: all in)
+                    return self.raise_to(s, to)
+                if cls in ("strong", "good"):
+                    return "call", 0               # (the rest of them: call)
+            if (self.cont_rule and eff >= self.cont_min_bb and
+                    s.to_call < 0.5 * s.my_stack and self._continue_hand(hole, board)):
+                return "call", 0
 
         to_call = min(s.to_call, s.my_stack) if self.small_bet_margin else s.to_call
         need = to_call / (pot + to_call)   # (all-in for less: the price is what you put in)
