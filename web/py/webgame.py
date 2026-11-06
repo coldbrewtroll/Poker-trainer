@@ -230,7 +230,8 @@ class WebGame:
             same = abs(to(move) - to(adv)) <= 0.25 * to(adv)
         out = {"you": T.describe(move, s), "hint": T.describe(adv, s)}
         icm = FT.coach_spot(s, self.ft)
-        graded = FT.grade(dict(icm), move, s)
+        icm = dict(icm)              # (the grade fills in the solves)
+        graded = FT.grade(icm, move, s)
         node = {"chosen": T.bucket(move, s), "verdict": same, "options": []}
         if graded is not None:
             right, g = graded
@@ -240,9 +241,12 @@ class WebGame:
             if not right:
                 st["lost"] += abs(g)
             node["icm"] = (right, g, sum(icm["pays"]))
-            go = "Jam" if icm["kind"] == "jam" else "Call"
-            out["icm"] = (f"ICM: {go if g > 0 else 'Fold'} {icm['hand']} was best "
-                          f"({I.money_k(abs(g))})")
+            if icm["kind"] == "sb":      # the SB vs BB game: fold / limp / 3 bb / jam
+                out["icm"] = FT.sb_verdict(icm, right, g)
+            else:
+                go = "Jam" if icm["kind"] == "jam" else "Call"
+                out["icm"] = (f"ICM: {go if g > 0 else 'Fold'} {icm['hand']} was best "
+                              f"({I.money_k(abs(g))})")
             out["icm_right"] = bool(right)
         if same and graded is None:
             cap = T.CAPTIONS[0]

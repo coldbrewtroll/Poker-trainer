@@ -788,6 +788,178 @@ def solve_call(stacks, value, jammer, hero):
             "jam_range": res["jam_range"]}
 
 
+# ------------------------------------------------------------------ small blind vs big blind
+# Folded to the small blind, short: push/fold leaves out the traps. Here the small blind
+# can fold, limp, raise to 3 bb or jam; the big blind answers a limp by checking or jamming,
+# a 3 bb raise by folding or jamming, a jam by calling or folding; the small blind then
+# calls or folds a jam. Solved under ICM by fictitious play like solve_jam (exact
+# hand-vs-range equities, card removal), so strong hands limp or raise as traps when that
+# earns more than jamming, at the frequencies that make it work.
+
+SB_RAISE_TO = 3.0        # the trap raise (bb)
+SB_RAISE_MIN_BB = 8.5    # from this stack (bb): the raise is at most about a third of it
+SB_LIMP_REALIZE = 0.9    # limped pots checked down: the small blind (out of position) gets
+#                          this share of its equity (the big blind the rest)
+SB_ACTIONS = ("fold", "limp", "raise", "jam")
+
+
+def solve_sb(stacks, value, iters=300, linear=True):
+    """The small blind first in against the big blind (everyone else folded). stacks: bb in
+    position order, the big blind last (with its ante). Returns {"mix": {hand: {action:
+    freq}}, "ev": {hand: {action: value}}, "bb": {"vs_limp", "vs_raise", "vs_jam": per-hand
+    jam / jam / call weights}, "sb_calls": {"limp", "raise": per-hand call-a-jam weights},
+    "outcomes": the values behind it}, or None when it doesn't apply (too short to limp or
+    raise: push/fold)."""
+    names, idx, E, W = exact()
+    n = len(stacks)
+    s, b = n - 2, n - 1
+    ante = [0.0] * n
+    ante[b] = min(ANTE, stacks[b])
+    blind = [0.0] * n
+    blind[s] = min(0.5, stacks[s])
+    blind[b] = min(1.0, stacks[b] - ante[b])
+    if stacks[s] < 2.0 or stacks[b] - ante[b] < 2.0 or blind[b] < 1.0:
+        return None
+    can_raise = stacks[s] >= SB_RAISE_MIN_BB    # (shorter: a 3 bb raise commits too much)
+    after = [x - y - z for x, y, z in zip(stacks, blind, ante)]
+
+    def moved(ds, db):
+        st = list(stacks)
+        st[s] += ds
+        st[b] += db
+        return st
+    dead = blind[b] + ante[b]                  # what the small blind wins when the BB folds
+    lim = blind[b]                             # what a limp puts in
+    st = {"fold": moved(-blind[s], blind[s]),
+          "win": moved(dead, -dead),           # BB folds (to a raise or a jam), or a limped
+          "lose_limp": moved(-lim, lim),       # pot the SB wins / loses
+          "lose_raise": moved(-SB_RAISE_TO, SB_RAISE_TO),
+          "allin_win": Spot._showdown(stacks, blind, ante, after, s, b, s),
+          "allin_lose": Spot._showdown(stacks, blind, ante, after, s, b, b)}
+    V = {k: value(v, [s, b]) for k, v in st.items()}
+    vs = {k: v[s] for k, v in V.items()}
+    vb = {k: v[b] for k, v in V.items()}
+    nh = len(names)
+    eq_all = [sum(W[h][j] * E[h][j] for j in range(nh)) / 1225.0 for h in range(nh)]
+    from bots.preflop8 import TOP
+    top = lambda share: [1.0 if TOP[names[j]] <= share else 0.0 for j in range(nh)]  # noqa
+    # the small blind's plans (each hand plays one per round): fold, limp and call a jam,
+    # limp and fold to it, raise and call, raise and fold, jam
+    Lc, Lf, Rc, Rf, J = (_Avg(nh) for _ in range(5))
+    # the big blind: jam over a limp, jam over the raise, call the jam
+    bJL, bJR, bC = _Avg(nh), _Avg(nh), _Avg(nh)
+    bJL.step(top(0.3), 1)
+    bJR.step(top(0.15), 1)
+    bC.step(top(0.35), 1)
+    R = SB_LIMP_REALIZE
+
+    def sb_evs(h):
+        ev = {"fold": vs["fold"]}
+        pc, eqc = bC.prob(h), bC.eq(h)
+        ev["jam"] = (1 - pc) * vs["win"] + pc * (eqc * vs["allin_win"] + (1 - eqc) * vs["allin_lose"])
+        dj = bJL.den[h]
+        pj = dj / 1225.0
+        eqj = bJL.num[h] / dj if dj > 1e-12 else 0.5
+        rest = 1225.0 - dj
+        eq_chk = (eq_all[h] * 1225.0 - bJL.num[h]) / rest if rest > 1e-12 else 0.5
+        ev_chk = R * eq_chk * vs["win"] + (1 - R * eq_chk) * vs["lose_limp"]
+        call_l = eqj * vs["allin_win"] + (1 - eqj) * vs["allin_lose"]
+        ev["limp"] = (1 - pj) * ev_chk + pj * max(call_l, vs["lose_limp"])
+        out = {"limp_call": call_l > vs["lose_limp"]}
+        if can_raise:
+            dr = bJR.den[h]
+            pr = dr / 1225.0
+            eqr = bJR.num[h] / dr if dr > 1e-12 else 0.5
+            call_r = eqr * vs["allin_win"] + (1 - eqr) * vs["allin_lose"]
+            ev["raise"] = (1 - pr) * vs["win"] + pr * max(call_r, vs["lose_raise"])
+            out["raise_call"] = call_r > vs["lose_raise"]
+        return ev, out
+
+    for t in range(2, iters + 2):
+        lc, lf, rc, rf, jj = ([0.0] * nh for _ in range(5))
+        for h in range(nh):
+            ev, how = sb_evs(h)
+            best = max(ev, key=ev.get)
+            if best == "limp":
+                (lc if how["limp_call"] else lf)[h] = 1.0
+            elif best == "raise":
+                (rc if how["raise_call"] else rf)[h] = 1.0
+            elif best == "jam":
+                jj[h] = 1.0
+        tw = (t + 1) / 2 if linear else t     # (linear: later rounds weigh more)
+        for A, br in ((Lc, lc), (Lf, lf), (Rc, rc), (Rf, rf), (J, jj)):
+            A.step(br, tw)
+        # the big blind's best answers to the small blind's average ranges
+        jl, jr, cc = [0.0] * nh, [0.0] * nh, [0.0] * nh
+        for j in range(nh):
+            dl = Lc.den[j] + Lf.den[j]
+            if dl > 1e-12:
+                eq_sb = 1 - (Lc.num[j] + Lf.num[j]) / dl          # the SB's equity vs j
+                share = R * eq_sb
+                chk = share * vb["win"] + (1 - share) * vb["lose_limp"]
+                pcall = Lc.den[j] / dl
+                eqb = Lc.num[j] / Lc.den[j] if Lc.den[j] > 1e-12 else 0.5
+                jam = (1 - pcall) * vb["lose_limp"] + pcall * (
+                    eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"])
+                jl[j] = 1.0 if jam > chk else 0.0
+            dr = Rc.den[j] + Rf.den[j]
+            if dr > 1e-12:
+                pcall = Rc.den[j] / dr
+                eqb = Rc.num[j] / Rc.den[j] if Rc.den[j] > 1e-12 else 0.5
+                jam = (1 - pcall) * vb["lose_raise"] + pcall * (
+                    eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"])
+                jr[j] = 1.0 if jam > vb["win"] else 0.0
+            if J.den[j] > 1e-12:
+                eqb = J.num[j] / J.den[j]
+                cc[j] = 1.0 if eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"] > vb["win"] else 0.0
+        bJL.step(jl, tw)
+        bJR.step(jr, tw)
+        bC.step(cc, tw)
+    mix, evs = {}, {}
+    for h in range(nh):
+        m = {"limp": Lc.avg[h] + Lf.avg[h], "raise": Rc.avg[h] + Rf.avg[h], "jam": J.avg[h]}
+        m["fold"] = max(0.0, 1.0 - sum(m.values()))
+        mix[names[h]] = {a: m[a] for a in SB_ACTIONS if a in m and (a != "raise" or can_raise)}
+        evs[names[h]] = sb_evs(h)[0]
+
+    def calls(c, f):
+        return [c.avg[h] / (c.avg[h] + f.avg[h]) if c.avg[h] + f.avg[h] > 1e-9 else 0.0
+                for h in range(nh)]
+
+    # the big blind's gains at each answer (jam over check / fold, call over fold), per hand
+    bb_ev = {"vs_limp": {}, "vs_raise": {}, "vs_jam": {}}
+    for j in range(nh):
+        dl = Lc.den[j] + Lf.den[j]
+        if dl > 1e-12:
+            share = R * (1 - (Lc.num[j] + Lf.num[j]) / dl)
+            chk = share * vb["win"] + (1 - share) * vb["lose_limp"]
+            pcall = Lc.den[j] / dl
+            eqb = Lc.num[j] / Lc.den[j] if Lc.den[j] > 1e-12 else 0.5
+            jam = (1 - pcall) * vb["lose_limp"] + pcall * (
+                eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"])
+            bb_ev["vs_limp"][names[j]] = jam - chk
+        else:
+            bb_ev["vs_limp"][names[j]] = 0.0
+        dr = Rc.den[j] + Rf.den[j]
+        if dr > 1e-12:
+            pcall = Rc.den[j] / dr
+            eqb = Rc.num[j] / Rc.den[j] if Rc.den[j] > 1e-12 else 0.5
+            jam = (1 - pcall) * vb["lose_raise"] + pcall * (
+                eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"])
+            bb_ev["vs_raise"][names[j]] = jam - vb["win"]
+        else:
+            bb_ev["vs_raise"][names[j]] = 0.0
+        eqb = J.num[j] / J.den[j] if J.den[j] > 1e-12 else 0.5
+        bb_ev["vs_jam"][names[j]] = eqb * vb["allin_lose"] + (1 - eqb) * vb["allin_win"] - vb["win"]
+    return {"mix": mix, "ev": evs, "can_raise": can_raise, "bb_ev": bb_ev,
+            "ranges": {"limp": [Lc.avg[h] + Lf.avg[h] for h in range(nh)],
+                       "raise": [Rc.avg[h] + Rf.avg[h] for h in range(nh)],
+                       "jam": list(J.avg)},
+            "sb_calls": {"limp": calls(Lc, Lf), "raise": calls(Rc, Rf)},
+            "bb": {"vs_limp": list(bJL.avg), "vs_raise": list(bJR.avg), "vs_jam": list(bC.avg)},
+            "values": {"sb": vs, "bb": vb}, "stacks": list(stacks), "s": s, "b": b}
+
+
 def risk_premiums(stacks, value):
     """rp[i][j]: extra equity (percentage points) player i needs, compared with chip EV, to
     call an all-in from player j (no blinds in: the pure premium). Chip EV needs 50%."""
@@ -1894,6 +2066,19 @@ class ICMWindow:
             f.update(to_call=sp.get("to_call", 0.0), pot=sp.get("pot", 0.0),
                      street=sp.get("street", "preflop"), eff=sp.get("eff", st[me]))
             return f
+        if sp["kind"] == "sb":           # folded to you in the small blind: the SB vs BB game
+            res, chip = sp["res"], sp["chip"]
+            hand = sp["hand"]
+            ev = res["ev"][hand]
+            f["sb"] = {"mix": res["mix"][hand], "ev": ev, "can_raise": res["can_raise"],
+                       "shares": {a: _share_w(res["ranges"][a]) for a in ("limp", "raise", "jam")},
+                       "bb": {k: _share_w(v) for k, v in res["bb"].items()},
+                       "chip_mix": chip["mix"][hand] if chip else None,
+                       "chip_shares": {a: _share_w(chip["ranges"][a])
+                                       for a in ("limp", "raise", "jam")} if chip else None,
+                       "bb_pos": pos[len(st) - 1], "bb_stack": st[-1], "eff": sp.get("eff")}
+            f["gain"] = max(ev.values()) - ev["fold"]
+            return f
         res, chip = sp["res"], sp["chip"]
         f["gain"], f["gain_chips"] = res["gain"][sp["hand"]], chip["gain"][sp["hand"]]
         spot = res["spot"]
@@ -1989,6 +2174,10 @@ class ICMWindow:
         line(f"{f['shorter']} player{'s are' if f['shorter'] != 1 else ' is'} shorter than you"
              + (": every one who busts first moves you up the ladder for free." if f['shorter']
                 else ": you're the shortest stack, so the ladder works against waiting."))
+        if f["kind"] == "sb":
+            self._coach_sb(f, hand, head, line, C)
+            fit(y + 20)
+            return
         if f["kind"] == "info":
             self._coach_info(f, head, line, C)
             fit(y + 20)
@@ -2330,12 +2519,83 @@ class ICMWindow:
                  "You'd be out of position after the flop.")
         line(hand_note(o["hand"], o.get("spr", 5.0)))
 
+    def _coach_sb(self, f, hand, head, line, C):
+        """Folded to you in the small blind, short: fold, limp, raise to 3 bb or jam."""
+        d = f["sb"]
+        names = {"fold": "Fold", "limp": "Limp", "raise": f"Raise to {SB_RAISE_TO:g} bb",
+                 "jam": "Jam"}
+        line(f"Folded to you in the small blind with {d['eff']:.1f} bb effective against the "
+             f"{d['bb_pos']} ({d['bb_stack']:g} bb). This is the whole small blind vs big blind "
+             f"game under ICM: you can fold, limp, raise to {SB_RAISE_TO:g} bb or jam; the big "
+             f"blind answers a limp by checking or jamming, the raise by folding or jamming, "
+             f"a jam by calling or folding.", col=C["dim"])
+        head(f"Your hand: {hand}")
+        mix = d["mix"]
+        played = [a for a in ("jam", "limp", "raise", "fold") if mix.get(a, 0) >= 0.01]
+        line("The solve plays it: " + "  \u00b7  ".join(
+            f"{names[a]} {100 * mix[a]:.0f}%" for a in sorted(played, key=lambda a: -mix[a])),
+            bold=True)
+        ev = d["ev"]
+        others = [a for a in ("limp", "raise", "jam") if a in ev]
+        line("Worth, compared with folding: " + "  \u00b7  ".join(
+            f"{names[a]} {money(ev[a] - ev['fold'], sign=True)}" for a in others) + ".")
+        best = max(ev, key=ev.get)
+        tol = max(1.0, 1e-4 * f["pool"])
+        tied = [a for a in ev if a != "fold" and ev[a] >= ev[best] - tol]
+        if len(tied) > 1:
+            line(f"{' and '.join(names[a] for a in tied)} are worth the same here (within "
+                 f"{money(tol)}): mix them, as the solve does, so the big blind can't tell "
+                 f"your strong hands from the rest.", col=C["gold"])
+        elif best in ("limp", "raise") and ev["jam"] > ev["fold"]:
+            line(f"A trap: {names[best].lower()} earns {money(ev[best] - ev['jam'])} more than "
+                 f"jamming. The big blind jams over a limp {100 * d['bb']['vs_limp']:.0f}% of "
+                 f"the time" + (f" (over the raise {100 * d['bb']['vs_raise']:.0f}%)"
+                                if d["can_raise"] else "") +
+                 f" but calls a jam only {100 * d['bb']['vs_jam']:.0f}%: let them put the chips "
+                 f"in.", col=C["gold"])
+        elif best == "jam" and max(ev.get("limp", -1e18), ev.get("raise", -1e18)) > ev["fold"]:
+            line(f"Jam: it earns {money(ev['jam'] - max(ev.get('limp', -1e18), ev.get('raise', -1e18)))} "
+                 f"more than trapping. Your hand does well enough against the calls, and it "
+                 f"doesn't want to see a flop out of position.", col=C["gold"])
+        head("How the big blind answers")
+        line(f"Over a limp: jams {100 * d['bb']['vs_limp']:.0f}% of hands, checks the rest.")
+        if d["can_raise"]:
+            line(f"Over the {SB_RAISE_TO:g} bb raise: jams {100 * d['bb']['vs_raise']:.0f}%, "
+                 f"folds the rest.")
+        line(f"Against a jam: calls {100 * d['bb']['vs_jam']:.0f}%.")
+        head("Your whole range here")
+        sh = d["shares"]
+        fold = max(0.0, 1 - sum(sh.values()))
+        line(f"Jam {100 * sh['jam']:.0f}%  \u00b7  limp {100 * sh['limp']:.0f}%" +
+             (f"  \u00b7  raise {100 * sh['raise']:.0f}%" if d["can_raise"] else "") +
+             f"  \u00b7  fold {100 * fold:.0f}% of hands. The limps and raises mix traps (big "
+             f"hands) with hands too weak to jam, so the big blind can't attack them freely.")
+        if d.get("chip_shares"):
+            c = d["chip_shares"]
+            line(f"In chips (no ICM) it would be: jam {100 * c['jam']:.0f}%  \u00b7  limp "
+                 f"{100 * c['limp']:.0f}%" + (f"  \u00b7  raise {100 * c['raise']:.0f}%"
+                                              if d["can_raise"] else "") + ".", col=C["dim"])
+
     def _coach_info(self, f, head, line, C):
         """The coach for a decision that isn't all-in or fold: first the decision itself
         (opening, facing an open, facing a 3-bet, after the flop), then what ICM adds."""
         sp = self.tspot
         street = f["street"]
         analysed = False
+        if sp.get("sb_limp"):     # the small blind limped into you: the SB vs BB game's answer
+            st, pays = sp["stacks"], sp["pays"]
+            game = solve_sb(st, icm_value(list(pays)))
+            if game is not None:
+                h = exact()[1][sp["hand"]]
+                p = game["bb"]["vs_limp"][h]
+                gain = game["bb_ev"]["vs_limp"][sp["hand"]]
+                head("The small blind limped")
+                line(f"At these stacks the small blind's limps mix traps (big hands that want you "
+                     f"to jam) with hands too weak to jam. The solve jams over the limp with "
+                     f"{100 * _share_w(game['bb']['vs_limp']):.0f}% of hands and checks the rest.")
+                line(f"{sp['hand']}: jam {100 * p:.0f}%, check {100 * (1 - p):.0f}%. Jamming is "
+                     f"worth {money(gain, sign=True)} compared with checking.", bold=True)
+                analysed = True
         for key, fn in (("open2x", self._coach_open), ("facing", self._coach_facing),
                         ("vs3bet", self._coach_vs3bet), ("post", self._coach_post)):
             if sp.get(key):
@@ -2751,6 +3011,7 @@ class CoachHost:
     _coach_vs3bet = ICMWindow._coach_vs3bet
     _coach_exploit = ICMWindow._coach_exploit
     _coach_bluff = ICMWindow._coach_bluff
+    _coach_sb = ICMWindow._coach_sb
 
     def __init__(self, T, parent, spot):
         self.T, self.top, self.tspot, self.coach = T, parent, spot, None

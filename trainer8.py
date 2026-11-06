@@ -563,6 +563,9 @@ class Analyst:
         if move is not None and not hero and describe(move, s) == "Fold":
             return None  # folds by others aren't drawn (they leave the hand)
         hands = self.ranges.get(seat, ORDER)
+        exact_mix = FTL.sb_chart(s) if (s.street == "preflop" and FTL.POLICY.get("on")) else None
+        if exact_mix is not None:
+            return self.analyse_mix(s, move, adv, auto, exact_mix)
         if s.street != "preflop" and len(hands) > 36:
             hands = self.rng.sample(list(hands), 36)
         dead = set(s.board)
@@ -624,6 +627,55 @@ class Analyst:
                         for p in s.players if p.seat != seat and not p.folded]
         if move is not None:
             self.narrow(seat, per_hand, chosen)
+        else:
+            self.last_hero = per_hand
+        return node
+
+    def analyse_mix(self, s, move, adv, auto, exact_mix):
+        """A decision whose whole strategy is known exactly (the SB vs BB game's solve):
+        {hand: {move: freq}} instead of sampling the bot."""
+        seat, hero = s.my_seat, s.my_seat == 0
+        hands = self.ranges.get(seat, ORDER)
+        weights, grid, per_hand = {}, {}, {}
+        for h in hands:
+            cell = {}
+            for mv, f in exact_mix.get(h, {}).items():
+                if f <= 0:
+                    continue
+                k = bucket(mv, s)
+                cell[k] = cell.get(k, 0.0) + f
+            if not cell:
+                continue
+            grid[h] = cell
+            per_hand[h] = max(cell, key=cell.get)
+            for k, f in cell.items():
+                weights[k] = weights.get(k, 0.0) + COMBOS[h] * f
+        total = sum(weights.values()) or 1
+        keys = sorted(weights, key=lambda k: (ORDER_RANK[k[0]], k[1] or 0))
+        raise_keys = [k for k in keys if k[1] is not None]
+        options = []
+        for k in keys:
+            col = (RAISE_COLOURS[min(raise_keys.index(k), 2)] if k in raise_keys
+                   else ACT_COLOURS.get(k[0], "#888888"))
+            label = "Limp" if (k[0] == "Call" and not raises_before(s)) else key_label(k)
+            options.append((k, label, 100.0 * weights[k] / total, col))
+        chosen = bucket(move, s) if move is not None else None
+        node = {"seat": seat, "pos": s.position, "hero": hero, "street": s.street,
+                "board": list(s.board), "pot": s.pot, "options": options, "chosen": chosen,
+                "bot": bucket(adv, s) if adv is not None else None, "auto": auto,
+                "verdict": None, "range": sum(COMBOS[h] for h in hands) / 13.26,
+                "grid": grid, "hole": list(s.hole),
+                "spot": f"{s.position} \u00b7 " + ("unopened" if raises_before(s) == 0 else
+                                                    "vs open"),
+                "cells": grid, "range_hands": list(hands),
+                "opps": [(p.position, list(self.ranges.get(p.seat, ORDER)))
+                         for p in s.players if p.seat != seat and not p.folded]}
+        if move is not None:
+            # narrow by the action family, like the sampled tree
+            fam = family(chosen) if chosen else None
+            keep = [h for h in hands if h in grid and any(family(k) == fam for k in grid[h])]
+            if keep:
+                self.ranges[seat] = keep
         else:
             self.last_hero = per_hand
         return node
@@ -3340,6 +3392,11 @@ class Trainer:
                             out.append(mv[1])
                 if out:
                     return sorted(out)[:3]
+        if s.street == "preflop" and self.mode == "Final table":
+            sp = FTL.icm_spot(s)
+            if sp is not None and sp["kind"] == "sb":   # the SB vs BB game: its 3 bb raise
+                to = FTL.sb_raise_to(s)
+                return [to] if to else []
         if s.street == "preflop":
             sim = self.sim_sizes(s)
             if sim:      # your sim's own sizes here (a two-size tree: both)
@@ -4153,11 +4210,14 @@ class Trainer:
         elif k == "icm_graded":
             _, spot, right, g = ev
             self.icm_last = (right, g)
-            go = "Jam" if spot["kind"] == "jam" else "Call"
-            best = go if g > 0 else "Fold"
-            self.toast = (f"ICM: {best} {spot['hand']}  \u00b7  " +
-                          (f"right ({money_k(abs(g))} better)" if right else
-                           f"wrong, that cost {money_k(abs(g))}"))
+            if spot["kind"] == "sb":
+                self.toast = FTL.sb_verdict(spot, right, g)
+            else:
+                go = "Jam" if spot["kind"] == "jam" else "Call"
+                best = go if g > 0 else "Fold"
+                self.toast = (f"ICM: {best} {spot['hand']}  \u00b7  " +
+                              (f"right ({money_k(abs(g))} better)" if right else
+                               f"wrong, that cost {money_k(abs(g))}"))
             # At a final table the ICM verdict is the grade for this decision: a fold the
             # coach calls best is never a "fish" fold, whatever the chip-EV sims prefer.
             node = self.caption_node or next(
@@ -4165,6 +4225,7 @@ class Trainer:
             if node is not None:
                 node["icm"] = (right, g, sum(spot["pays"]))
                 node["icm_kind"] = ("call" if spot["kind"] == "call" else
+                                    "sb" if spot["kind"] == "sb" else
                                     "rejam" if spot.get("opener") is not None else "jam_first")
                 node["icm_act"] = spot.get("answer")
                 if node is self.caption_node:

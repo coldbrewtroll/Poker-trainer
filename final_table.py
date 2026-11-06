@@ -268,8 +268,22 @@ def grade(spot, move, s=None):
     """(right, dollars: going vs folding) for your move in an ICM all-in decision, or None
     when there's nothing to grade (an "info" spot, or a normal-sized bet or call: played on
     as usual)."""
-    if spot["kind"] == "info":
+    if spot["kind"] in ("info", "sb_limp"):
         return None
+    if spot["kind"] == "sb":
+        act = sb_action(move, s) if s is not None else None
+        ensure_solved(spot)
+        res = spot["res"]
+        if act is None or res is None or act not in res["ev"][spot["hand"]]:
+            return None
+        ev, mix = res["ev"][spot["hand"]], res["mix"][spot["hand"]]
+        tol = 1e-4 * sum(spot["pays"])          # ($100 in a $1M pool: a coin flip)
+        top = max(ev.values())
+        # the best play: of the actions worth the most (within $tol), the one played most
+        best = max((a for a in ev if ev[a] >= top - tol), key=lambda a: mix.get(a, 0.0))
+        g = min(0.0, ev[act] - top)
+        spot["answer"], spot["best"] = act, best
+        return (mix.get(act, 0.0) >= 0.10 or g >= -tol), g
     if move[0] == "fold" or (move[0] == "check" and spot["kind"] == "jam"):
         act = "fold"
     elif move[0] == "call" and spot["kind"] == "call":
@@ -381,6 +395,9 @@ def icm_spot(s):
             enumerate(h for h in s.history if h[0] == "preflop") if a != "fold"]
     idx_of = {p.seat: k for k, p in enumerate(order)}
     eff = _eff_bb(s)
+    sb = _sb_spot(order, st, me, acts, idx_of, s)
+    if sb is not None:
+        return sb
     if not acts:
         if me == n - 1 or eff > JAM_PRACTICAL_BB:
             return None
@@ -413,6 +430,204 @@ def icm_spot(s):
     return None
 
 
+# ------------------------------------------------------------ small blind vs big blind
+# Folded to a short small blind: fold, limp, a 3 bb raise or a jam, each hand by the ICM
+# solve of the whole SB vs BB game (icm_study.solve_sb): strong hands limp or raise as
+# traps when the big blind attacks enough to make it pay. The big blind answers from the
+# same solve.
+
+SB_GAME_BB = SHORT_BB     # under this effective (bb): the SB vs BB game
+
+
+def _sb_spot(order, st, me, acts, idx_of, s):
+    n = len(order)
+    if n < 2:
+        return None
+    sb, bb = n - 2, n - 1
+    if me not in (sb, bb) or any(idx_of[a[1]] not in (sb, bb) for a in acts):
+        return None
+    eff = min(st[sb], st[bb])
+    if eff >= SB_GAME_BB or I.solve_sb is None:
+        return None
+    ante = min(I.ANTE, st[bb])
+    if st[sb] < 2.0 or st[bb] - ante < 2.0:
+        return None
+    base = {"stacks": st, "me": me, "eff": eff, "kw": {}}
+    seq = [(idx_of[seat], a) for _, seat, a, _ in acts]
+    allin = [order[idx_of[seat]].all_in or order[idx_of[seat]].stack == 0
+             for _, seat, _, _ in acts]
+    if me == sb and not seq:
+        return dict(base, kind="sb", jammer=None)
+    if me == bb and seq == [(sb, "call")]:
+        return dict(base, kind="sb_limp", jammer=None)
+    if me == bb and seq == [(sb, "raise")]:
+        if allin[0]:
+            return dict(base, kind="call", jammer=sb, sb="jam")
+        return dict(base, kind="jam", jammer=None, sb="raise", opener=sb)
+    if me == sb and len(seq) == 2 and seq[1] == (bb, "raise") and allin[1]:
+        if seq[0] == (sb, "call"):
+            return dict(base, kind="call", jammer=bb, sb="limp")
+        if seq[0] == (sb, "raise") and not allin[0]:
+            return dict(base, kind="call", jammer=bb, sb="raise")
+    return None
+
+
+_SB = OrderedDict()
+
+
+def solve_sb(st, pays, chips=False):
+    """icm_study.solve_sb, cached."""
+    key = (tuple(round(x, 4) for x in st), tuple(pays), chips)
+    with _LOCK:
+        hit = _SB.get(key)
+    if hit is None:
+        hit = I.solve_sb(list(st), I.chips_value if chips else I.icm_value(list(pays)))
+        with _LOCK:
+            _SB[key] = hit
+            while len(_SB) > 64:
+                _SB.popitem(last=False)
+    return hit
+
+
+def sb_res(sp, pays, chips=False):
+    """The solve behind a spot of the SB vs BB game, shaped like solve_jam's result (a re-jam
+    over the SB's raise) or call_from's (calling a jam), so the coach, your grade and the
+    bots read it as usual. Kind "sb" (the SB first in): solve_sb's own result."""
+    st = sp["stacks"]
+    game = solve_sb(st, pays, chips)
+    if sp["kind"] == "sb" or game is None:
+        return game
+    names = I.exact()[0]
+    n = len(st)
+    s, b = n - 2, n - 1
+    value = I.chips_value if chips else I.icm_value(list(pays))
+    node = sp["sb"]
+    if node == "jam":                      # the BB facing the SB's jam
+        spot = I.Spot(st, value, s)
+        jam_gain = {h: game["ev"][h]["jam"] - game["ev"][h]["fold"] for h in names}
+        return I.call_from({"spot": spot, "jam_range": game["ranges"]["jam"], "gain": jam_gain}, b)
+    posts = [0.0] * n
+    posts[s] = I.SB_RAISE_TO if node == "raise" else 1.0
+    posts[b] = 1.0
+    if node in ("limp", "raise") and sp["kind"] == "call":    # the SB facing the BB's jam
+        spot = I.Spot(st, value, b, posts=posts, responders=[s], fold_to=b)
+        jam_w = game["bb"]["vs_limp" if node == "limp" else "vs_raise"]
+        jam_gain = {h: game["bb_ev"]["vs_" + node][h] for h in names}
+        return I.call_from({"spot": spot, "jam_range": jam_w, "gain": jam_gain}, s)
+    # the BB facing the SB's raise: jam or fold (a re-jam over an open, from the solve)
+    spot = I.Spot(st, value, b, posts=posts, responders=[s], fold_to=s)
+    gain = {h: game["bb_ev"]["vs_raise"][h] for h in names}
+    prior = game["ranges"]["raise"]
+    calls = game["sb_calls"]["raise"]
+    tot = I._share_w(prior)
+    share = I._share_w([c * p for c, p in zip(calls, prior)]) / tot if tot else 0.0
+    return {"gain": gain, "share": I._share([h for h in I.ORDER if gain[h] > 0]),
+            "calls": {s: (share, spot.need(s))}, "spot": spot,
+            "jam_range": game["bb"]["vs_raise"], "call_ranges": {s: calls},
+            "priors": {s: prior}}
+
+
+def sb_action(move, s):
+    """Your move in the SB vs BB game as one of its actions."""
+    if move[0] == "fold":
+        return "fold"
+    if move[0] == "call" or move[0] == "check":
+        return "limp"
+    if move[0] == "raise":
+        return "jam" if move[1] >= s.max_raise_to - 1 else "raise"
+    return None
+
+
+def sb_raise_to(s):
+    """The 3 bb raise in chips (within what's legal), or None when it isn't a real option."""
+    if not s.min_raise_to or (s.my_stack + s.my_bet) / s.big_blind < I.SB_RAISE_MIN_BB:
+        return None
+    to = int(round(I.SB_RAISE_TO * s.big_blind))
+    to = max(s.min_raise_to, to)
+    return to if to < s.max_raise_to else None
+
+
+def _pick(mix, rng=None):
+    """An action from a mix (by random: the bots mix their traps)."""
+    import random as _r
+    x = (rng or _r).random()
+    for a, f in mix.items():
+        x -= f
+        if x < 0:
+            return a
+    return max(mix, key=mix.get)
+
+
+def sb_layer(s, sp, pays, move):
+    """The bots in the SB vs BB game."""
+    hand = I.hand_class(*s.hole)
+    h = I.exact()[1][hand]
+    game = solve_sb(sp["stacks"], pays)
+    if game is None:
+        return None
+    if sp["kind"] == "sb":
+        a = _pick(game["mix"][hand])
+        if a == "fold":
+            return ("fold", 0)
+        if a == "limp":
+            return ("call", 0)
+        if a == "raise":
+            to = sb_raise_to(s)
+            return ("raise", to) if to else ("raise", s.max_raise_to)
+        return ("raise", s.max_raise_to)
+    if sp["kind"] == "sb_limp":
+        import random as _r
+        return ("raise", s.max_raise_to) if _r.random() < game["bb"]["vs_limp"][h] else ("check", 0)
+    if sp["kind"] == "jam" and sp.get("sb") == "raise":
+        import random as _r
+        return ("raise", s.max_raise_to) if _r.random() < game["bb"]["vs_raise"][h] else ("fold", 0)
+    return None
+
+
+def sb_chart(s):
+    """For the chart: the SB vs BB game's exact strategy at this decision, {hand: {move:
+    freq}}, or None (not that game)."""
+    table = POLICY.get("table")
+    if table is None:
+        return None
+    sp = icm_spot(s)
+    if sp is None or not (sp["kind"] in ("sb", "sb_limp") or
+                          (sp["kind"] == "jam" and sp.get("sb") == "raise")):
+        return None
+    game = solve_sb(sp["stacks"], table.pays(len(sp["stacks"])))
+    if game is None:
+        return None
+    names = I.exact()[0]
+    out = {}
+    if sp["kind"] == "sb":
+        to = sb_raise_to(s) or s.max_raise_to
+        moves = {"fold": ("fold", 0), "limp": ("call", 0), "raise": ("raise", to),
+                 "jam": ("raise", s.max_raise_to)}
+        for h in names:
+            out[h] = {moves[a]: f for a, f in game["mix"][h].items()}
+        return out
+    key = "vs_limp" if sp["kind"] == "sb_limp" else "vs_raise"
+    other = ("check", 0) if sp["kind"] == "sb_limp" else ("fold", 0)
+    for k, h in enumerate(names):
+        p = game["bb"][key][k]
+        out[h] = {("raise", s.max_raise_to): p, other: 1 - p}
+    return out
+
+
+def sb_verdict(spot, right, g):
+    """The grade's one-liner for the SB vs BB game."""
+    names = {"fold": "Fold", "limp": "Limp", "raise": f"Raise to {I.SB_RAISE_TO:g}",
+             "jam": "Jam"}
+    res = spot["res"]
+    mix = res["mix"][spot["hand"]]
+    plays = " / ".join(f"{names[a].lower()} {100 * f:.0f}%" for a, f in
+                       sorted(mix.items(), key=lambda kv: -kv[1]) if f >= 0.05)
+    if right:
+        return f"ICM: {names[spot['answer']]} {spot['hand']} is right ({plays})"
+    return (f"ICM: {names[spot['best']]} {spot['hand']} was best ({plays}); that cost "
+            f"{I.money_k(abs(g))}")
+
+
 def icm_layer(s, move):
     """At a final table with ICM on: every all-in decision by the ICM equilibrium."""
     table = POLICY.get("table")
@@ -423,11 +638,18 @@ def icm_layer(s, move):
         return move
     h = I.exact()[1][I.hand_class(*s.hole)]
     pays = table.pays(len(sp["stacks"]))
+    if sp["kind"] in ("sb", "sb_limp") or (sp["kind"] == "jam" and sp.get("sb")):
+        out = sb_layer(s, sp, pays, move)
+        return move if out is None else out
     if sp["kind"] == "call":
-        res = solve(sp["stacks"], pays, sp["jammer"], **sp["kw"])
+        if sp.get("sb"):
+            cf = sb_res(sp, pays)
+        else:
+            res = solve(sp["stacks"], pays, sp["jammer"], **sp["kw"])
+            cf = I.call_from(res, sp["me"])
         # call when calling beats folding for this hand against the jam range: the same
         # number the coach's verdict and your ICM grade use (I.call_from)
-        go = I.call_from(res, sp["me"])["gain"][I.hand_class(*s.hole)] > 0
+        go = cf["gain"][I.hand_class(*s.hole)] > 0
         if go:
             return ("call", 0)
         return ("fold", 0) if s.to_call else move
@@ -659,8 +881,14 @@ def coach_spot(s, table):
         out.update(kind="info", live=live, to_call=s.to_call / s.big_blind,
                    pot=s.pot / s.big_blind, eff=_eff_bb(s), board=list(s.board))
         return out
+    if sp["kind"] == "sb_limp":     # the BB facing a limp: the solve's answer, no grade
+        live = [k for k, p in enumerate(order) if not p.folded and k != me]
+        out.update(kind="info", live=live, to_call=s.to_call / s.big_blind,
+                   pot=s.pot / s.big_blind, eff=_eff_bb(s), board=list(s.board),
+                   sb_limp=True)
+        return out
     out.update(kind=sp["kind"], jammer=sp["jammer"], kw=sp["kw"], eff=sp["eff"],
-               opener=sp.get("opener"))
+               opener=sp.get("opener"), sb=sp.get("sb"))
     return out
 
 
@@ -668,6 +896,11 @@ def ensure_solved(spot):
     if spot["kind"] == "info" or "res" in spot:
         return spot
     st, pays, me, kw = spot["stacks"], spot["pays"], spot["hero"], spot.get("kw", {})
+    if spot["kind"] == "sb" or spot.get("sb"):
+        sp = dict(spot, stacks=st)
+        spot["res"] = sb_res(sp, pays)
+        spot["chip"] = sb_res(sp, pays, chips=True)
+        return spot
     if spot["kind"] == "jam":
         spot["res"] = solve(st, pays, me, iters=40, **kw)
         spot["chip"] = solve(st, pays, me, chips=True, iters=40, **kw)
