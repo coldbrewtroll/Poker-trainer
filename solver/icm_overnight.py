@@ -658,7 +658,7 @@ def read_check(s, sp, mv, pays):
         if sp["kind"] == "call":
             res = FT.solve(sp["stacks"], pays, sp["jammer"], **sp["kw"])
             go = I.call_from(res, sp["me"])["gain"][hand] > 0
-            did = mv[0] == "call" or (mv[0] == "raise")
+            did = mv[0] == "call" or (mv[0] == "raise")       # (calling a jam: call or more)
             if go != did:
                 price = s.to_call / (s.pot + s.to_call) if s.to_call else 0
                 note = ("bot vs ICM (call)", hand, go, mv[0],
@@ -667,7 +667,9 @@ def read_check(s, sp, mv, pays):
         else:
             res = FT.solve(sp["stacks"], pays, sp["me"], **sp["kw"])
             jam = res["jam_range"][I.exact()[1][hand]] >= 0.5
-            did = mv[0] == "raise" and mv[1] >= s.max_raise_to - 1
+            # all in: a jam, or a call / complete that puts the whole stack in
+            did = (mv[0] == "raise" and mv[1] >= s.max_raise_to - 1) or \
+                (mv[0] == "call" and s.to_call and s.my_stack <= s.to_call)
             if jam and not did and (sp["kw"] or sp["eff"] < FT.SHORT_BB):
                 note = ("bot vs ICM (jam)", hand, jam, list(mv), "not jammed")
             elif did and not jam:

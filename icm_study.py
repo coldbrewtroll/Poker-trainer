@@ -395,14 +395,30 @@ class Spot:
         self.v_steal, self.v_fold = value(steal, need), value(fold, [hero])
         self.win, self.lose = {}, {}
         for i in self.behind:
-            live_h, live_i = stacks[hero] - ante[hero], stacks[i] - ante[i]
-            a = min(live_h, live_i)                       # what each risks (blinds included)
-            dead = pot - blind[hero] - blind[i]            # others' blinds + all antes
-            total = 2 * a + dead
-            w, l = after[:], after[:]
-            w[hero], w[i] = live_h - a + total, live_i - a
-            l[hero], l[i] = live_h - a, live_i - a + total
+            w = self._showdown(stacks, blind, ante, after, hero, i, hero)
+            l = self._showdown(stacks, blind, ante, after, hero, i, i)
             self.win[i], self.lose[i] = value(w, [hero, i]), value(l, [hero, i])
+
+    @staticmethod
+    def _showdown(stacks, blind, ante, after, hero, i, winner):
+        """The stacks after `hero` and `i` are all in and `winner` wins: the pots settled
+        layer by layer like the engine (each can win from every other player only as much
+        as they put in themselves; the ante is dead, it goes to the winner). Usually that's
+        the whole pot; not when a blind or an open already in is bigger than a short
+        all-in's stack."""
+        live = [s - a for s, a in zip(stacks, ante)]
+        commit = list(blind)
+        commit[hero], commit[i] = live[hero], live[i]
+        out = list(after)
+        out[hero] = out[i] = 0.0
+        prev = 0.0
+        for lv in sorted({c for c in commit if c > 0}):
+            layer = sum(min(c, lv) - min(c, prev) for c in commit)
+            elig = [k for k in (hero, i) if commit[k] >= lv]
+            out[winner if (winner in elig or not elig) else elig[0]] += layer
+            prev = lv
+        out[winner] += sum(ante)
+        return out
 
     def need(self, i):
         """Equity caller i needs to call the jam (their fold value: the hero's steal)."""
