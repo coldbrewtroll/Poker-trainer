@@ -553,7 +553,7 @@ class _Avg:
 
 
 def solve_jam(stacks, value, hero, iters=40, posts=None, responders=None, fold_to=None,
-              priors=None):
+              priors=None, linear=False):
     """Push/fold equilibrium for a first-in jam (fictitious play: each side's range is the
     average of its best answers to the other's). Exact hand-vs-range equities with card
     removal; the first caller plays the hand out (overcalls are rare and left out).
@@ -580,7 +580,8 @@ def solve_jam(stacks, value, hero, iters=40, posts=None, responders=None, fold_t
     for t in range(1, iters + 1):
         eqc = [J.eq(c) for c in range(n)]
         for i in sp.behind:
-            C[i].step([1.0 if eqc[c] >= need[i] else 0.0 for c in range(n)], t)
+            C[i].step([1.0 if eqc[c] >= need[i] else 0.0 for c in range(n)],
+                      (t + 1) / 2 if linear else t)
         rows = [(C[i].num, C[i].den, prior_mass.get(i), win[i], lose[i]) for i in sp.behind]
         for h in range(n):
             ev, p_reach = 0.0, 1.0
@@ -595,7 +596,8 @@ def solve_jam(stacks, value, hero, iters=40, posts=None, responders=None, fold_t
                     ev += p_reach * pc * (eq * wi + (1 - eq) * li)
                 p_reach *= 1 - pc
             gain[h] = ev + p_reach * steal - fold
-        J.step([1.0 if g > 0 else 0.0 for g in gain], t)   # (round 1 drops the guess)
+        J.step([1.0 if g > 0 else 0.0 for g in gain],      # (round 1 drops the guess)
+               (t + 1) / 2 if linear else t)
     jam = J.avg
     calls = {i: C[i].avg for i in sp.behind}
     out = {names[h]: gain[h] for h in range(n)}

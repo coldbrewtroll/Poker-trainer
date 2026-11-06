@@ -499,6 +499,11 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
                     rec["fail"].append({"exploit": (label_, d)})
     except Exception as e:      # (recorded, not fatal)
         rec["fail"].append({"exploit_error": repr(e)})
+    if rec["fail"]:      # (everything needed to rebuild the spot)
+        rec["spot"] = {"stacks": list(st), "me": me, "who": who, "kind": kind, "pays": list(pays),
+                       "kw": {k: (list(v) if isinstance(v, tuple) else
+                                  {str(a): list(b) for a, b in v.items()} if isinstance(v, dict)
+                                  else v) for k, v in kw.items()}}
     rec["secs"] = round(time.time() - t0, 1)
     out.write(json.dumps(rec) + "\n")
     out.flush()

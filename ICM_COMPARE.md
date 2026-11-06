@@ -13,13 +13,13 @@ Stacks are in big blinds, listed in seat order from the first to act to the big 
 
 Prize money left: $416,650
 
-**SB jams first in** (everyone before folds): 72.8% of hands (chip EV: 72.8%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 94s+, 84s+, 74s+, 63s+, 53s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+`
+**SB jams first in** (everyone before folds): 73.7% of hands (chip EV: 73.7%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+, 65o+`
 
-- **BB calls** 57.9% (chip EV 57.9%), needs 42.1% equity  
-  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 97s+, 87s+, A2o+, K2o+, Q2o+, J7o+, T8o+, 98o+`
+- **BB calls** 56.5% (chip EV 56.5%), needs 42.1% equity  
+  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q2o+, J7o+, T8o+, 98o+`
 
-Value of jamming over folding for the SB (ICM, $): K7o +6,123, Q4s +3,598, T9o +3,084, 22 +5,749
+Value of jamming over folding for the SB (ICM, $): K7o +6,012, Q4s +3,465, T9o +3,007, 22 +5,812
 
 ## 2. 3 left: BTN 20, SB 12, BB 6
 
@@ -31,15 +31,15 @@ Value of jamming over folding for the SB (ICM, $): K7o +6,123, Q4s +3,598, T9o +
 
 Prize money left: $534,425
 
-**BTN jams first in** (everyone before folds): 71.4% of hands (chip EV: 41.1%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 74s+, 63s+, 53s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+`
+**BTN jams first in** (everyone before folds): 73.6% of hands (chip EV: 41.5%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+, 65o+`
 
-- **SB calls** 8.2% (chip EV 28.6%), needs 61.2% equity  
+- **SB calls** 7.8% (chip EV 28.8%), needs 61.2% equity  
   `77+, ATs+, KQs+, AJo+`
-- **BB calls** 56.2% (chip EV 68.7%), needs 42.1% equity  
-  `22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 97s+, 87s+, A2o+, K2o+, Q3o+, J7o+, T8o+`
+- **BB calls** 56.6% (chip EV 67.4%), needs 42.1% equity  
+  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q2o+, J7o+, T8o+, 98o+`
 
-Value of jamming over folding for the BTN (ICM, $): A2o +3,310, K9o +3,674, Q8s +2,984, 55 +4,470
+Value of jamming over folding for the BTN (ICM, $): A2o +3,344, K9o +3,739, Q8s +3,000, 55 +4,458
 
 ## 3. 4 left: chip leader (CO, 40 bb) first in vs 15 / 10 / 12
 
@@ -52,17 +52,17 @@ Value of jamming over folding for the BTN (ICM, $): A2o +3,310, K9o +3,674, Q8s 
 
 Prize money left: $619,000
 
-**CO jams first in** (everyone before folds): 82.8% of hands (chip EV: 31.1%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q2o+, J2o+, T4o+, 95o+, 85o+, 75o+, 64o+, 53o+`
+**CO jams first in** (everyone before folds): 83.1% of hands (chip EV: 31.2%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q2o+, J2o+, T6o+, T4o, 95o+, 85o+, 75o+, 64o+, 53o+`
 
-- **BTN calls** 4.7% (chip EV 16.9%), needs 64.6% equity  
+- **BTN calls** 4.8% (chip EV 16.9%), needs 64.6% equity  
   `88+, AQs+, AKo+`
-- **SB calls** 15.4% (chip EV 24.2%), needs 57.9% equity  
-  `66+, A5s+, K9s+, A8o+, KJo+`
-- **BB calls** 15.3% (chip EV 25.5%), needs 58.0% equity  
-  `66+, A5s+, K9s+, A8o+, KJo+`
+- **SB calls** 15.5% (chip EV 24.2%), needs 57.9% equity  
+  `66+, A5s+, K9s+, QJs+, A8o+, KJo+`
+- **BB calls** 15.5% (chip EV 25.5%), needs 58.0% equity  
+  `66+, A5s+, K9s+, QJs+, A8o+, KJo+`
 
-Value of jamming over folding for the CO (ICM, $): A5o +1,343, KTo +1,236, J9s +1,263, 33 +1,665
+Value of jamming over folding for the CO (ICM, $): A5o +1,321, KTo +1,213, J9s +1,217, 33 +1,660
 
 ## 4. 5 left: SB 8 bb vs a 40 bb big blind
 
@@ -76,13 +76,13 @@ Value of jamming over folding for the CO (ICM, $): A5o +1,343, KTo +1,236, J9s +
 
 Prize money left: $680,475
 
-**SB jams first in** (everyone before folds): 60.3% of hands (chip EV: 75.5%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T4s+, 95s+, 85s+, 75s+, 64s+, 53s+, A2o+, K2o+, Q4o+, J7o+, T7o+, 97o+, 87o+`
+**SB jams first in** (everyone before folds): 60.5% of hands (chip EV: 76.2%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T5s+, 95s+, 85s+, 74s+, 64s+, 53s+, A2o+, K2o+, Q4o+, J7o+, T8o+, 97o+, 87o+`
 
-- **BB calls** 44.6% (chip EV 62.6%), needs 43.3% equity  
-  `22+, A2s+, K2s+, Q4s+, J7s+, T8s+, 98s+, A2o+, K2o+, Q8o+, J9o+`
+- **BB calls** 45.2% (chip EV 61.2%), needs 43.3% equity  
+  `22+, A2s+, K2s+, Q4s+, J7s+, T8s+, 98s+, A2o+, K2o+, Q7o+, J9o+, T9o+`
 
-Value of jamming over folding for the SB (ICM, $): A2o +3,530, K5s +2,664, Q9o +1,929, T8s +1,467
+Value of jamming over folding for the SB (ICM, $): A2o +3,490, K5s +2,591, Q9o +1,888, T8s +1,319
 
 ## 5. 6 left: HJ 15 bb first in
 
@@ -97,19 +97,19 @@ Value of jamming over folding for the SB (ICM, $): A2o +3,530, K5s +2,664, Q9o +
 
 Prize money left: $726,525
 
-**HJ jams first in** (everyone before folds): 22.1% of hands (chip EV: 24.1%)  
-`22+, A2s+, K8s+, K6s, Q8s+, J9s+, T9s+, A9o+, KTo+, QTo+, JTo+`
+**HJ jams first in** (everyone before folds): 21.5% of hands (chip EV: 24.1%)  
+`22+, A2s+, K8s+, Q9s+, J9s+, T9s+, A9o+, KTo+, QTo+`
 
-- **CO calls** 6.9% (chip EV 12.9%), needs 52.7% equity  
+- **CO calls** 7.1% (chip EV 12.8%), needs 52.7% equity  
   `88+, ATs+, AJo+`
-- **BTN calls** 8.3% (chip EV 17.6%), needs 50.7% equity  
-  `77+, ATs+, ATo+`
-- **SB calls** 6.4% (chip EV 14.1%), needs 53.8% equity  
+- **BTN calls** 7.6% (chip EV 18.1%), needs 50.7% equity  
+  `77+, ATs+, AJo+`
+- **SB calls** 6.6% (chip EV 14.0%), needs 53.8% equity  
   `88+, AJs+, AJo+`
-- **BB calls** 5.6% (chip EV 15.8%), needs 54.7% equity  
+- **BB calls** 5.5% (chip EV 15.7%), needs 54.7% equity  
   `99+, AJs+, AQo+`
 
-Value of jamming over folding for the HJ (ICM, $): A9o +64, KJo +435, QTs +836, 66 +656
+Value of jamming over folding for the HJ (ICM, $): A9o +1, KJo +413, QTs +836, 66 +662
 
 ## 6. 8 left (full final table): UTG 10 bb
 
@@ -126,25 +126,25 @@ Value of jamming over folding for the HJ (ICM, $): A9o +64, KJo +435, QTs +836, 
 
 Prize money left: $788,125
 
-**UTG jams first in** (everyone before folds): 14.1% of hands (chip EV: 17.2%)  
-`55+, A8s+, A5s-A4s, K9s+, QTs+, JTs+, ATo+, KJo+`
+**UTG jams first in** (everyone before folds): 14.0% of hands (chip EV: 16.7%)  
+`55+, A8s+, A5s-A3s, K9s+, QTs+, JTs+, AJo+, KJo+`
 
-- **UTG1 calls** 6.6% (chip EV 10.2%), needs 48.6% equity  
-  `88+, AJs+, AJo+`
-- **LJ calls** 6.0% (chip EV 10.2%), needs 49.4% equity  
+- **UTG1 calls** 6.1% (chip EV 10.0%), needs 48.6% equity  
   `88+, AJs+, AQo+`
-- **HJ calls** 5.8% (chip EV 10.2%), needs 50.0% equity  
+- **LJ calls** 5.9% (chip EV 10.0%), needs 49.4% equity  
   `88+, AJs+, AQo+`
-- **CO calls** 5.5% (chip EV 10.2%), needs 50.6% equity  
+- **HJ calls** 5.9% (chip EV 10.0%), needs 50.0% equity  
+  `88+, AJs+, AQo+`
+- **CO calls** 5.4% (chip EV 10.0%), needs 50.6% equity  
   `99+, AJs+, AQo+`
-- **BTN calls** 5.4% (chip EV 10.2%), needs 51.4% equity  
+- **BTN calls** 5.1% (chip EV 10.0%), needs 51.4% equity  
+  `99+, AQs+, AQo+`
+- **SB calls** 5.4% (chip EV 11.9%), needs 50.9% equity  
   `99+, AJs+, AQo+`
-- **SB calls** 5.5% (chip EV 11.8%), needs 50.9% equity  
-  `99+, AJs+, AQo+`
-- **BB calls** 5.6% (chip EV 14.3%), needs 50.3% equity  
-  `99+, AJs+, AQo+`
+- **BB calls** 5.9% (chip EV 14.5%), needs 50.3% equity  
+  `88+, AJs+, AQo+`
 
-Value of jamming over folding for the UTG (ICM, $): AJo +671, KQo +213, A8s +74, 77 +225
+Value of jamming over folding for the UTG (ICM, $): AJo +544, KQo +270, A8s +131, 77 +101
 
 ## 7. 7 left: CO 12 bb jams, BB 25 bb to call
 
@@ -160,19 +160,19 @@ Value of jamming over folding for the UTG (ICM, $): AJo +671, KQo +213, A8s +74,
 
 Prize money left: $761,525
 
-**CO jams first in** (everyone before folds): 32.0% of hands (chip EV: 32.4%)  
-`22+, A2s+, K4s+, Q7s+, J7s+, T7s+, 97s+, 87s+, A7o+, A5o-A3o, KTo+, QTo+, JTo+`
+**CO jams first in** (everyone before folds): 31.8% of hands (chip EV: 32.7%)  
+`22+, A2s+, K4s+, Q6s+, J7s+, T7s+, 97s+, 87s+, A7o+, A5o-A3o, KTo+, QTo+, JTo+`
 
-- **BTN calls** 9.5% (chip EV 24.2%), needs 52.5% equity  
-  `66+, A9s+, KQs+, ATo+`
-- **SB calls** 8.8% (chip EV 22.5%), needs 53.6% equity  
+- **BTN calls** 9.2% (chip EV 24.3%), needs 52.5% equity  
+  `66+, A9s+, ATo+`
+- **SB calls** 8.7% (chip EV 22.2%), needs 53.6% equity  
   `77+, A9s+, ATo+`
-- **BB calls** 13.3% (chip EV 25.7%), needs 49.4% equity  
+- **BB calls** 13.2% (chip EV 25.5%), needs 49.4% equity  
   `55+, A7s+, KJs+, A8o+, KQo+`
 
-Value of jamming over folding for the CO (ICM, $): A9o +1,106, KJo +746, QJs +1,476, 88 +3,574
+Value of jamming over folding for the CO (ICM, $): A9o +1,083, KJo +789, QJs +1,529, 88 +3,578
 
-**BB facing the jam** (calling vs folding, $): A9o +1,655, KJo -997, QJs -1,339, 88 +5,542  
+**BB facing the jam** (calling vs folding, $): A9o +1,476, KJo -1,109, QJs -1,402, 88 +5,538  
 Call range 13.6%, needs 49.4% equity
 
 ## 8. 7 left: CO 20 bb jams, BB 9 bb to call
@@ -189,19 +189,19 @@ Call range 13.6%, needs 49.4% equity
 
 Prize money left: $761,525
 
-**CO jams first in** (everyone before folds): 45.6% of hands (chip EV: 31.1%)  
-`22+, A2s+, K2s+, Q2s+, J3s+, T5s+, 95s+, 85s+, 75s+, 64s+, 54s+, A2o+, K4o+, Q8o+, J8o+, T8o+, 98o+`
+**CO jams first in** (everyone before folds): 47.6% of hands (chip EV: 31.1%)  
+`22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 65s+, 54s+, A2o+, K7o+, Q8o+, J8o+, T8o+, 98o+`
 
-- **BTN calls** 7.1% (chip EV 17.8%), needs 59.4% equity  
+- **BTN calls** 7.1% (chip EV 18.0%), needs 59.4% equity  
   `88+, ATs+, AJo+`
-- **SB calls** 9.3% (chip EV 21.0%), needs 56.7% equity  
-  `77+, A9s+, ATo+`
-- **BB calls** 20.5% (chip EV 31.8%), needs 49.3% equity  
-  `44+, A2s+, K9s+, QJs+, A7o+, KTo+`
+- **SB calls** 9.1% (chip EV 21.1%), needs 56.7% equity  
+  `77+, A9s+, KQs+, ATo+`
+- **BB calls** 22.0% (chip EV 31.8%), needs 49.3% equity  
+  `44+, A2s+, K9s+, QTs+, A5o+, KTo+, QJo+`
 
-Value of jamming over folding for the CO (ICM, $): A7o +1,419, K9s +1,525, QTo +1,117, 44 +2,077
+Value of jamming over folding for the CO (ICM, $): A7o +1,352, K9s +1,309, QTo +859, 44 +2,051
 
-**BB facing the jam** (calling vs folding, $): A7o +2,019, K9s +1,444, QTo -1,646, 44 +1,362  
+**BB facing the jam** (calling vs folding, $): A7o +1,952, K9s +1,656, QTo -1,120, 44 +1,091  
 Call range 21.3%, needs 49.3% equity
 
 ## Small blind vs big blind: limps and the 3 bb raise (traps)

@@ -218,7 +218,7 @@ _SOLVES = OrderedDict()
 _LOCK = threading.Lock()
 
 
-def solve(st, pays, who, chips=False, iters=40, posts=None, responders=None, fold_to=None,
+def solve(st, pays, who, chips=False, iters=120, posts=None, responders=None, fold_to=None,
           priors=None):
     """solve_jam for `who`, cached (the bots, your hint, the hand tree and the coach all
     ask about the same spot)."""
@@ -229,7 +229,8 @@ def solve(st, pays, who, chips=False, iters=40, posts=None, responders=None, fol
         hit = _SOLVES.get(key)
     if hit is None:
         val = I.chips_value if chips else I.icm_value(list(pays))
-        hit = I.solve_jam(st, val, who, iters=iters, posts=list(posts) if posts else None,
+        hit = I.solve_jam(st, val, who, iters=iters, linear=True,   # (later rounds weigh more)
+                          posts=list(posts) if posts else None,
                           responders=list(responders) if responders else None,
                           fold_to=fold_to, priors={k: list(v) for k, v in priors.items()}
                           if priors else None)
@@ -1211,12 +1212,12 @@ def ensure_solved(spot):
             spot["info"] = game_info(spot)
         return spot
     if spot["kind"] == "jam":
-        spot["res"] = solve(st, pays, me, iters=40, **kw)
-        spot["chip"] = solve(st, pays, me, chips=True, iters=40, **kw)
+        spot["res"] = solve(st, pays, me, **kw)
+        spot["chip"] = solve(st, pays, me, chips=True, **kw)
     else:
         j = spot["jammer"]
-        spot["res"] = I.call_from(solve(st, pays, j, iters=40, **kw), me)
-        spot["chip"] = I.call_from(solve(st, pays, j, chips=True, iters=40, **kw), me)
+        spot["res"] = I.call_from(solve(st, pays, j, **kw), me)
+        spot["chip"] = I.call_from(solve(st, pays, j, chips=True, **kw), me)
     return spot
 
 
