@@ -195,9 +195,10 @@ def call_from(res, hero):
     names = exact()[0]
     sp, rj = res["spot"], _sparse(res["jam_range"])
     win, lose, fold = sp.lose[hero][hero], sp.win[hero][hero], sp.v_steal[hero]
+    k = sp.chop_share(hero, hero)
     gain = {}
     for h in range(len(names)):
-        eq = range_eq(h, rj)
+        eq = eq_icm(h, rj, k)
         gain[names[h]] = eq * win + (1 - eq) * lose - fold
     return {"gain": gain, "share": _share([h for h in ORDER if gain[h] > 0]),
             # the share of hands in the jam range the equities are worked out against
@@ -393,19 +394,21 @@ class Spot:
         # the big blind (or the opener) wins what's in
         need = [hero] + self.behind
         self.v_steal, self.v_fold = value(steal, need), value(fold, [hero])
-        self.win, self.lose = {}, {}
+        self.win, self.lose, self.chop = {}, {}, {}
         for i in self.behind:
             w = self._showdown(stacks, blind, ante, after, hero, i, hero)
             l = self._showdown(stacks, blind, ante, after, hero, i, i)
+            c = self._showdown(stacks, blind, ante, after, hero, i, None)
             self.win[i], self.lose[i] = value(w, [hero, i]), value(l, [hero, i])
+            self.chop[i] = value(c, [hero, i])
 
     @staticmethod
     def _showdown(stacks, blind, ante, after, hero, i, winner):
-        """The stacks after `hero` and `i` are all in and `winner` wins: the pots settled
-        layer by layer like the engine (each can win from every other player only as much
-        as they put in themselves; the ante is dead, it goes to the winner). Usually that's
-        the whole pot; not when a blind or an open already in is bigger than a short
-        all-in's stack."""
+        """The stacks after `hero` and `i` are all in and `winner` wins (None: they split
+        the pot): the pots settled layer by layer like the engine (each can win from every
+        other player only as much as they put in themselves; the ante is dead, it goes to
+        the winner). Usually that's the whole pot; not when a blind or an open already in
+        is bigger than a short all-in's stack."""
         live = [s - a for s, a in zip(stacks, ante)]
         commit = list(blind)
         commit[hero], commit[i] = live[hero], live[i]
@@ -415,10 +418,31 @@ class Spot:
         for lv in sorted({c for c in commit if c > 0}):
             layer = sum(min(c, lv) - min(c, prev) for c in commit)
             elig = [k for k in (hero, i) if commit[k] >= lv]
-            out[winner if (winner in elig or not elig) else elig[0]] += layer
+            if winner is None and len(elig) != 1:
+                out[hero] += layer / 2
+                out[i] += layer / 2
+            elif winner is None:
+                out[elig[0]] += layer
+            else:
+                out[winner if (winner in elig or not elig) else elig[0]] += layer
             prev = lv
-        out[winner] += sum(ante)
+        if winner is None:
+            out[hero] += sum(ante) / 2
+            out[i] += sum(ante) / 2
+        else:
+            out[winner] += sum(ante)
         return out
+
+    def chop_share(self, i, who):
+        """What a split pot between the hero and caller i is worth to `who` (the hero or i)
+        as a share of a win: (chop - lose) / (win - lose). Half in chips; more under ICM
+        (surviving is worth more than the average of doubling up and busting)."""
+        if who == self.hero:
+            w, l = self.win[i][who], self.lose[i][who]
+        else:
+            w, l = self.lose[i][who], self.win[i][who]
+        span = w - l
+        return (self.chop[i][who] - l) / span if span > 1e-12 else 0.5
 
     def need(self, i):
         """Equity caller i needs to call the jam (their fold value: the hero's steal)."""
@@ -430,18 +454,26 @@ class Spot:
 # ------------------------------------------------------------------ exact equities
 
 _EXACT = None
+_TIE = None
+
+
+def ties():
+    """169x169 chances of a split pot all-in preflop (zeros with an old table)."""
+    exact()
+    return _TIE
 
 
 def exact():
     """169x169 all-in equities (ties as half) and card-removal weights: W[i][j] = how many
     combos of hand j fit with one combo of hand i (out of 1225 = 50 choose 2)."""
-    global _EXACT
+    global _EXACT, _TIE
     if _EXACT is None:
         import json
         from pathlib import Path
         d = json.loads((Path(__file__).resolve().parent / "solver" /
                         "preflop_equity.json").read_text())
         names, E = d["names"], d["equity"]
+        _TIE = d.get("tie") or [[0.0] * len(names) for _ in names]
         ranks, suits = "23456789TJQKA", "cdhs"
 
         def masks(h):
@@ -475,6 +507,24 @@ def range_eq(i, rng):
     return num / den if den > 0 else 0.5
 
 
+def range_tie(i, rng):
+    """Chance hand i splits the pot against a range [(j, weight)], with card removal."""
+    T, W = ties(), exact()[3]
+    num = den = 0.0
+    Ti, Wi = T[i], W[i]
+    for j, w in rng:
+        ww = Wi[j] * w
+        num += ww * Ti[j]
+        den += ww
+    return num / den if den > 0 else 0.0
+
+
+def eq_icm(i, rng, k):
+    """Hand i's equity against a range with split pots worth `k` of a win (Spot.chop_share)
+    instead of half: value = eq * win + (1 - eq) * lose holds exactly with it."""
+    return range_eq(i, rng) + range_tie(i, rng) * (k - 0.5)
+
+
 def range_prob(i, rng):
     """Chance a random hand (given we hold hand i) is in the range: its combos / 1225."""
     W = exact()[3][i]
@@ -503,9 +553,11 @@ def _cols():
     global _COLS
     if _COLS is None:
         names, _, E, W = exact()
+        T = ties()
         n = len(names)
         _COLS = ([[W[h][j] for h in range(n)] for j in range(n)],
-                 [[W[h][j] * E[h][j] for h in range(n)] for j in range(n)])
+                 [[W[h][j] * E[h][j] for h in range(n)] for j in range(n)],
+                 [[W[h][j] * T[h][j] for h in range(n)] for j in range(n)])
     return _COLS
 
 
@@ -514,16 +566,19 @@ class _Avg:
     card-removal-weighted mass (den) and equity sum (num) against it kept up to date:
     a best response changes by a few hands per round, so only those columns are added."""
 
-    def __init__(self, n, weight=None):
+    def __init__(self, n, weight=None, ties=False):
         self.n = n
         self.w = weight                       # per-hand prior weight (or None)
+        self.ties = ties                      # (keep split-pot mass too: push/fold only)
         self.avg = [0.0] * n
         self.num, self.den = [0.0] * n, [0.0] * n          # against the average
+        self.tnum = [0.0] * n                              # (split pots)
         self.bnum, self.bden = [0.0] * n, [0.0] * n        # against the current best resp.
+        self.btnum = [0.0] * n
         self.br = [0.0] * n
 
     def _add(self, j, coef):
-        WT, WET = _cols()
+        WT, WET, WTT = _cols()
         if self.w is not None:
             coef *= self.w[j]
         if coef == 0.0:
@@ -532,6 +587,10 @@ class _Avg:
         for h in range(self.n):
             bd[h] += coef * wt[h]
             bn[h] += coef * we[h]
+        if self.ties:
+            wtt, bt = WTT[j], self.btnum
+            for h in range(self.n):
+                bt[h] += coef * wtt[h]
 
     def step(self, br, t):
         for j in range(self.n):
@@ -543,10 +602,16 @@ class _Avg:
         self.avg = [a * x + b * y for x, y in zip(self.avg, br)]
         self.num = [a * x + b * y for x, y in zip(self.num, self.bnum)]
         self.den = [a * x + b * y for x, y in zip(self.den, self.bden)]
+        if self.ties:
+            self.tnum = [a * x + b * y for x, y in zip(self.tnum, self.btnum)]
 
     def eq(self, h):
         d = self.den[h]
         return self.num[h] / d if d > 1e-12 else 0.5
+
+    def tie(self, h):
+        d = self.den[h]
+        return self.tnum[h] / d if d > 1e-12 else 0.0
 
     def prob(self, h):
         return self.den[h] / 1225.0
@@ -570,29 +635,34 @@ def solve_jam(stacks, value, hero, iters=40, posts=None, responders=None, fold_t
     n = len(names)
     from bots.preflop8 import TOP
     jam0 = [1.0 if TOP[names[j]] <= 0.3 else 0.0 for j in range(n)]
-    J = _Avg(n)
+    J = _Avg(n, ties=True)
     J.step(jam0, 1)                      # the starting guess (what round 1 answers)
-    C = {i: _Avg(n, list(priors[i]) if i in priors else None) for i in sp.behind}
+    C = {i: _Avg(n, list(priors[i]) if i in priors else None, ties=True) for i in sp.behind}
     gain = [0.0] * n
     win = {i: sp.win[i][me] for i in sp.behind}
     lose = {i: sp.lose[i][me] for i in sp.behind}
     steal, fold = sp.v_steal[me], sp.v_fold[me]
+    kc = {i: sp.chop_share(i, i) - 0.5 for i in sp.behind}     # (split pots: see eq_icm)
+    kh = {i: sp.chop_share(i, me) - 0.5 for i in sp.behind}
     for t in range(1, iters + 1):
         eqc = [J.eq(c) for c in range(n)]
+        tc = [J.tie(c) for c in range(n)]
         for i in sp.behind:
-            C[i].step([1.0 if eqc[c] >= need[i] else 0.0 for c in range(n)],
+            k = kc[i]
+            C[i].step([1.0 if eqc[c] + tc[c] * k >= need[i] else 0.0 for c in range(n)],
                       (t + 1) / 2 if linear else t)
-        rows = [(C[i].num, C[i].den, prior_mass.get(i), win[i], lose[i]) for i in sp.behind]
+        rows = [(C[i].num, C[i].den, C[i].tnum, kh[i], prior_mass.get(i), win[i], lose[i])
+                for i in sp.behind]
         for h in range(n):
             ev, p_reach = 0.0, 1.0
-            for num, den, pm, wi, li in rows:
+            for num, den, tnum, k, pm, wi, li in rows:
                 d = den[h]
                 pc = d / 1225.0
                 if pm is not None:
                     m = pm[h]
                     pc = pc / m if m > 0 else 0.0
                 if pc > 0:
-                    eq = num[h] / d if d > 1e-12 else 0.5
+                    eq = (num[h] + tnum[h] * k) / d if d > 1e-12 else 0.5
                     ev += p_reach * pc * (eq * wi + (1 - eq) * li)
                 p_reach *= 1 - pc
             gain[h] = ev + p_reach * steal - fold
@@ -634,8 +704,10 @@ def _solve_jam_reference(stacks, value, hero, iters=40, posts=None, responders=N
     for t in range(1, iters + 1):
         rj = _sparse(jam)
         eqc = [range_eq(c, rj) for c in range(n)]
+        tc = [range_tie(c, rj) for c in range(n)]
         for i in sp.behind:
-            br = [1.0 if eqc[c] >= need[i] else 0.0 for c in range(n)]
+            k = sp.chop_share(i, i) - 0.5
+            br = [1.0 if eqc[c] + tc[c] * k >= need[i] else 0.0 for c in range(n)]
             calls[i] = [(1 - 1 / t) * a + b / t for a, b in zip(calls[i], br)]
         sc = {i: _sparse([c * p for c, p in zip(calls[i], priors[i])] if i in priors
                          else calls[i]) for i in sp.behind}
@@ -647,7 +719,7 @@ def _solve_jam_reference(stacks, value, hero, iters=40, posts=None, responders=N
                     m = prior_mass[i][h]
                     pc = pc / m if m > 0 else 0.0
                 if pc > 0:
-                    eq = range_eq(h, sc[i])
+                    eq = eq_icm(h, sc[i], sp.chop_share(i, me))
                     ev += p_reach * pc * (eq * sp.win[i][me] + (1 - eq) * sp.lose[i][me])
                 p_reach *= 1 - pc
             gain[h] = ev + p_reach * sp.v_steal[me] - sp.v_fold[me]
@@ -721,7 +793,7 @@ def exploit_jam(res, scales=EXPLOIT_SCALES):
                     m = pmass[i][h]
                     pc = pc / m if m > 0 else 0.0
                 if pc > 0:
-                    eq = range_eq(h, ranges[i])
+                    eq = eq_icm(h, ranges[i], sp.chop_share(i, me))
                     ev += p_reach * pc * (eq * sp.win[i][me] + (1 - eq) * sp.lose[i][me])
                 p_reach *= 1 - pc
             gain[names[h]] = ev + p_reach * sp.v_steal[me] - sp.v_fold[me]
@@ -738,12 +810,13 @@ def exploit_call(res, scales=EXPLOIT_SCALES):
     jam_gain = res["jam_gain"]
     score = [jam_gain[names[j]] for j in range(n)]
     win, lose, fold = sp.lose[hero][hero], sp.win[hero][hero], sp.v_steal[hero]
+    k = sp.chop_share(hero, hero)
     out = {}
     for label, scale in scales:
         rj = _sparse(_top_share(score, res["jam_share"] * scale))
         gain = {}
         for h in range(n):
-            eq = range_eq(h, rj)
+            eq = eq_icm(h, rj, k)
             gain[names[h]] = eq * win + (1 - eq) * lose - fold
         out[label] = {"gain": gain, "share": min(1.0, res["jam_share"] * scale), "scale": scale}
     return out
@@ -781,9 +854,10 @@ def solve_call(stacks, value, jammer, hero):
     res = solve_jam(stacks, value, jammer)
     sp, rj = res["spot"], _sparse(res["jam_range"])
     win, lose, fold = sp.lose[hero][hero], sp.win[hero][hero], sp.v_steal[hero]
+    k = sp.chop_share(hero, hero)
     gain = {}
     for h in range(len(names)):
-        eq = range_eq(h, rj)
+        eq = eq_icm(h, rj, k)
         gain[names[h]] = eq * win + (1 - eq) * lose - fold
     return {"gain": gain, "share": _share([h for h in ORDER if gain[h] > 0]),
             "jam_share": res["share"], "need": sp.need(hero), "spot": sp,
@@ -845,6 +919,27 @@ def _eqd(num, den):
 def _norm_mix(d):
     t = sum(d.values())
     return {k: v / t for k, v in d.items()} if t > 1e-12 else d
+
+
+PURE_TOL = 0.0005        # (share of the prize pool) a mixed action this much worse than the best
+#                          is the averaging lagging behind, or a hand that almost never gets
+#                          there: dropped from the strategies shown and played
+
+
+def _clean(nodes, value, stacks):
+    """Every node's mix, minus actions clearly worse than the best for that hand."""
+    n = len(stacks)
+    tol = PURE_TOL * sum(value(list(stacks), list(range(n))).values())
+    for nd in nodes.values():
+        for h, m in nd["mix"].items():
+            ev = nd["ev"].get(h)
+            if not ev:
+                continue
+            best = max(ev, key=ev.get)
+            keep = {a: f for a, f in m.items() if a not in ev or ev[a] >= ev[best] - tol}
+            t = sum(keep.values())
+            nd["mix"][h] = ({a: f / t for a, f in keep.items()} if t > 1e-6 else
+                            {**{a: 0.0 for a in m}, best: 1.0})
 
 
 def solve_sb(stacks, value, iters=GAME_ITERS, linear=True):
@@ -1135,6 +1230,7 @@ def solve_sb(stacks, value, iters=GAME_ITERS, linear=True):
         if w.get("bb_vs_jam"):
             nodes["bb_vs_jam"]["mix"][hn] = _norm_mix({"call": C.avg[h], "fold": 1 - C.avg[h]})
             nodes["bb_vs_jam"]["ev"][hn] = w["bb_vs_jam"]
+    _clean(nodes, value, stacks)
     limp = [sum(a.avg[h] for a in LP.values()) for h in range(nh)]
     ranges = {
         "limp": limp, "raise": [sum(a.avg[h] for a in RP.values()) for h in range(nh)],
@@ -1453,6 +1549,7 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
             if w.get("vs_jam"):
                 nodes[f"vs_jam:{i}"]["mix"][hn] = {"call": CJ[i].avg[h], "fold": 1 - CJ[i].avg[h]}
                 nodes[f"vs_jam:{i}"]["ev"][hn] = w["vs_jam"]
+    _clean(nodes, value, stacks)
     ranges = {"open": [sum(a.avg[h] for a in OP.values()) for h in range(nh)],
               "jam": list(J.avg),
               "fourbet": [sum(OP[("j", y)].avg[h] for y in "cf") for h in range(nh)],
@@ -2588,7 +2685,7 @@ class ICMWindow:
             rows, p_reach = [], 1.0
             for i in spot.behind:
                 pc = call_prob(res, i, h)
-                eq = range_eq(h, call_weights(res, i))
+                eq = eq_icm(h, call_weights(res, i), spot.chop_share(i, me))
                 need_me = (spot.v_fold[me] - spot.lose[i][me]) / max(
                     1e-9, spot.win[i][me] - spot.lose[i][me])
                 cs = chip["spot"]
@@ -2615,7 +2712,7 @@ class ICMWindow:
             rng = _sparse(res["jam_range"])
             f["jammer"], f["jammer_stack"] = pos[j], st[j]
             f["jam_share"] = res["jam_share"]
-            f["eq"] = range_eq(h, rng)
+            f["eq"] = eq_icm(h, rng, spot.chop_share(me, me))
             f["need"], f["need_chip"] = res["need"], chip["need"]
             f["win"], f["lose"] = spot.lose[me][me], spot.win[me][me]
             f["fold"] = spot.v_steal[me]

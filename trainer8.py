@@ -2475,7 +2475,8 @@ class Trainer:
         p_call = 1.0 - f_jam.get("fold", 1.0)
         call_w = [1.0 if range3[x] and per_jam.get(x) in ("call", "jam", "raise") else 0.0
                   for x in hnames]
-        eq_call = I.range_eq(h, I._sparse(call_w)) if sum(call_w) else 0.0
+        eq_call = (I.eq_icm(h, I._sparse(call_w), sp.chop_share(k, me))
+                   if sum(call_w) else 0.0)
         jam_ev = (1 - p_call) * sp.v_steal[me] + p_call * (
             eq_call * sp.win[k][me] + (1 - eq_call) * sp.lose[k][me])
         # A small 4-bet: how they answer it.

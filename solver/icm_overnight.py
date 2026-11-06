@@ -84,6 +84,7 @@ def combos_of(h):
 NAMES = I.exact()[0]
 IDX = {h: i for i, h in enumerate(NAMES)}
 E = I.exact()[2]
+T = I.ties()        # split-pot chances (a chop is valued as a chop, not as half a win)
 COMBOS = [combos_of(h) for h in NAMES]
 ALL = [(c, k) for k, cs in enumerate(COMBOS) for c in cs]       # (combo, class index)
 
@@ -216,6 +217,15 @@ def compat_tables():
     return None
 
 
+def three_way(num, tnum, den, hv, i):
+    """The hero's value of a showdown with i: win, lose or split, each at its own value
+    (equities count ties as half: wins = eq - tie / 2)."""
+    if den <= 0:
+        return 0.5 * (hv["win"][i] + hv["lose"][i])
+    eq, tie = num / den, tnum / den
+    return (eq - tie / 2) * hv["win"][i] + (1 - eq - tie / 2) * hv["lose"][i] + tie * hv["chop"][i]
+
+
 def gains_by_combo(ranges, priors, behind, hero_vals, against_jam=False, jam_w=None):
     """The hero's gain for each of the 169 hands, worked out over the hero's actual combos
     and every opponent combo that fits with them.
@@ -233,7 +243,7 @@ def gains_by_combo(ranges, priors, behind, hero_vals, against_jam=False, jam_w=N
             ev, reach = 0.0, 1.0
             for i in behind:
                 w, pr = ranges[i], priors.get(i) if priors else None
-                num = den = pden = 0.0
+                num = den = pden = tnum = 0.0
                 for (o1, o2), k in ALL:
                     if o1 in (c1, c2) or o2 in (c1, c2):
                         continue
@@ -243,48 +253,49 @@ def gains_by_combo(ranges, priors, behind, hero_vals, against_jam=False, jam_w=N
                     if wk:
                         den += wk
                         num += wk * E[h][k]
+                        tnum += wk * T[h][k]
                 pc = (den / pden if pden > 0 else 0.0) if pr else den / 1225.0
-                s = for_class.setdefault(i, [0.0, 0.0, 0.0])
+                s = for_class.setdefault(i, [0.0, 0.0, 0.0, 0.0])
                 s[0] += num
                 s[1] += den
                 s[2] += pden if pr else 1225.0
+                s[3] += tnum
                 if pc > 0:
-                    eq = num / den if den > 0 else 0.5
-                    ev += reach * pc * (eq * hero_vals["win"][i] + (1 - eq) * hero_vals["lose"][i])
+                    ev += reach * pc * three_way(num, tnum, den, hero_vals, i)
                 reach *= 1 - pc
             per_combo_ev += ev + reach * hero_vals["steal"]
         per[h] = per_combo_ev / len(mine) - hero_vals["fold"]
         ev, reach = 0.0, 1.0
         for i in behind:
-            num, den, pden = for_class[i]
+            num, den, pden, tnum = for_class[i]
             pc = den / pden if pden > 0 else 0.0
             if pc > 0:
-                eq = num / den if den > 0 else 0.5
-                ev += reach * pc * (eq * hero_vals["win"][i] + (1 - eq) * hero_vals["lose"][i])
+                ev += reach * pc * three_way(num, tnum, den, hero_vals, i)
             reach *= 1 - pc
         agg[h] = ev + reach * hero_vals["steal"] - hero_vals["fold"]
     return agg, per
 
 
-def call_gains_by_combo(jam_w, win_v, lose_v, fold_v):
+def call_gains_by_combo(jam_w, win_v, lose_v, fold_v, chop_v):
     """Calling a jam from a jam range (per-class weights): gain for each of 169 hands,
     class-aggregated (the trainer's way) and per combo."""
+    hv = {"win": {0: win_v}, "lose": {0: lose_v}, "chop": {0: chop_v}}
     agg, per = [0.0] * 169, [0.0] * 169
     for h in range(169):
-        tn = td = 0.0
+        tn = td = tt = 0.0
         pc_sum = 0.0
         for (c1, c2) in COMBOS[h]:
-            num = den = 0.0
+            num = den = tnum = 0.0
             for (o1, o2), k in ALL:
                 if jam_w[k] and not (o1 in (c1, c2) or o2 in (c1, c2)):
                     den += jam_w[k]
                     num += jam_w[k] * E[h][k]
+                    tnum += jam_w[k] * T[h][k]
             tn += num
             td += den
-            eq = num / den if den > 0 else 0.5
-            pc_sum += eq * win_v + (1 - eq) * lose_v - fold_v
-        eq = tn / td if td > 0 else 0.5
-        agg[h] = eq * win_v + (1 - eq) * lose_v - fold_v
+            tt += tnum
+            pc_sum += three_way(num, tnum, den, hv, 0) - fold_v
+        agg[h] = three_way(tn, tt, td, hv, 0) - fold_v
         per[h] = pc_sum / len(COMBOS[h])
     return agg, per
 
@@ -398,7 +409,7 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
     if abs(vals(o["fold"])[who] - sp.v_fold[who]) > tol:
         bad.append(("fold", who, vals(o["fold"])[who], sp.v_fold[who]))
     for i in o["behind"]:
-        for key, mine in (("win", sp.win[i]), ("lose", sp.lose[i])):
+        for key, mine in (("win", sp.win[i]), ("lose", sp.lose[i]), ("chop", sp.chop[i])):
             v = vals(o[key][i])
             for k in (who, i):
                 if abs(v[k] - mine[k]) > tol:
@@ -408,7 +419,8 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
 
     hero_vals = {"steal": sp.v_steal[who], "fold": sp.v_fold[who],
                  "win": {i: sp.win[i][who] for i in o["behind"]},
-                 "lose": {i: sp.lose[i][who] for i in o["behind"]}}
+                 "lose": {i: sp.lose[i][who] for i in o["behind"]},
+                 "chop": {i: vals(o["chop"][i])[who] for i in o["behind"]}}
     priors = {i: norm(w) for i, w in (res.get("priors") or {}).items()}
     calls = {i: norm(res["call_ranges"][i]) for i in o["behind"]}
 
@@ -418,7 +430,8 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
     else:
         cf = I.call_from(res, me)
         jam_w = norm(res["jam_range"])
-        agg, per = call_gains_by_combo(jam_w, sp.lose[me][me], sp.win[me][me], sp.v_steal[me])
+        agg, per = call_gains_by_combo(jam_w, sp.lose[me][me], sp.win[me][me], sp.v_steal[me],
+                                       vals(o["chop"][me])[me])
         app = [cf["gain"][NAMES[h]] for h in range(169)]
     worst = max(abs(a - b) for a, b in zip(agg, app))
     rec["model_diff"] = worst
@@ -492,7 +505,8 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
             score = [res["gain"][NAMES[j]] for j in range(169)]
             for label_, scale in I.EXPLOIT_SCALES:
                 jw = norm(top_share(score, cf["jam_share"] * scale))
-                agg2, _ = call_gains_by_combo(jw, sp.lose[me][me], sp.win[me][me], sp.v_steal[me])
+                agg2, _ = call_gains_by_combo(jw, sp.lose[me][me], sp.win[me][me], sp.v_steal[me],
+                                              vals(o["chop"][me])[me])
                 d = max(abs(agg2[h] - ex[label_]["gain"][NAMES[h]]) for h in range(169))
                 rec[f"exploit_{label_}"] = d
                 if d > 1e-6 * pool + 1e-3:
