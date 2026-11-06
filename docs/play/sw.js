@@ -1,6 +1,6 @@
 // Keeps the trainer on the phone after the first visit: the engine (15 MB) and the game
-// load from here next time, and it works offline. Bump VERSION when the site changes.
-const VERSION = "ftt-v1";
+// load from here next time, and it works offline. build.py renames VERSION on every build.
+const VERSION = "ftt-a1e8ee9afc";
 const CORE = ["./", "index.html", "app.css", "app.js", "worker.js", "app.zip", "manifest.webmanifest",
   "pyodide/pyodide.js", "pyodide/pyodide.asm.js", "pyodide/pyodide.asm.wasm",
   "pyodide/python_stdlib.zip", "pyodide/pyodide-lock.json"];

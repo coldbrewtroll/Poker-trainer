@@ -22,12 +22,68 @@ const save = () => { try { localStorage.setItem("ftt-settings", JSON.stringify(s
 const worker = new Worker("worker.js");
 let reqId = 0;
 const pending = {};
-function call(msg) {
+function call(msg, files) {
   return new Promise((res, rej) => {
     const id = ++reqId;
     pending[id] = { res, rej };
-    worker.postMessage({ id, msg });
+    worker.postMessage({ id, msg, files });
   });
+}
+
+// ---------------------------------------------------------------- your own charts
+// Kept in this browser's storage on this device only: never uploaded anywhere.
+const DB = { name: "ftt-charts", store: "charts", key: "mine" };
+function idb(mode, fn) {
+  return new Promise((res, rej) => {
+    const open = indexedDB.open(DB.name, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore(DB.store);
+    open.onerror = () => rej(open.error);
+    open.onsuccess = () => {
+      const tx = open.result.transaction(DB.store, mode);
+      const req = fn(tx.objectStore(DB.store));
+      tx.oncomplete = () => { open.result.close(); res(req && req.result); };
+      tx.onerror = () => { open.result.close(); rej(tx.error); };
+    };
+  });
+}
+const chartsGet = () => idb("readonly", (st) => st.get(DB.key)).catch(() => null);
+const chartsPut = (v) => idb("readwrite", (st) => st.put(v, DB.key));
+const chartsDel = () => idb("readwrite", (st) => st.delete(DB.key)).catch(() => null);
+let myCharts = null;   // {names, date, files, charts, spots} once loaded
+
+async function useCharts(files) {
+  const out = await call({ cmd: "charts" }, files);
+  return out;
+}
+
+async function restoreCharts() {
+  try {
+    const saved = await chartsGet();
+    if (!saved || !saved.files || !saved.files.length) return;
+    const out = await useCharts(saved.files);
+    myCharts = Object.assign({ date: saved.date, names: saved.files.map((f) => f.name) }, out);
+  } catch (e) { myCharts = null; }
+}
+
+async function pickCharts(list) {
+  const files = [];
+  for (const f of list) files.push({ name: f.name, buf: await f.arrayBuffer() });
+  const out = await useCharts(files);
+  if (!out.charts) {
+    await useCharts(myCharts ? (await chartsGet() || {}).files || [] : []);
+    throw new Error("No charts found in " + (files.length === 1 ? files[0].name : files.length + " files") +
+      ". Use files named like CO@25__raise_2bb.txt, or a zip of them.");
+  }
+  const date = new Date().toLocaleDateString();
+  try { await chartsPut({ files, date }); } catch (e) { /* private mode: they work until the page closes */ }
+  myCharts = Object.assign({ date, names: files.map((f) => f.name) }, out);
+  return out;
+}
+
+async function removeCharts() {
+  await useCharts([]);
+  await chartsDel();
+  myCharts = null;
 }
 worker.onmessage = (e) => {
   const d = e.data;
@@ -446,6 +502,14 @@ function openSettings() {
     `<div class="set">Speed</div>` + chips("speed", Object.keys(SPEEDS).map((k) => [k, k]), settings.speed) +
     `<div class="set">Clear folds</div>` + chips("skip", [[true, "Skip them"], [false, "Watch every hand"]], settings.skip) +
     `<div class="set">Hint</div>` + chips("hint", [[true, "Show"], [false, "Hide"]], settings.hint) +
+    `<div class="set">My charts (private: this device only)</div>` +
+    `<p class="c-text" id="chartsinfo">${chartsText()}</p>` +
+    `<div class="chips"><button id="chartsload" class="on">${myCharts ? "Replace charts" : "Load charts"}</button>` +
+    (myCharts ? `<button id="chartsdel">Remove</button>` : "") + `</div>` +
+    `<input type="file" id="chartsfile" accept=".zip,.txt,application/zip,text/plain" multiple class="hidden">` +
+    `<p class="c-text" style="color:var(--faint);font-size:12px">Your own study charts, e.g. a zip of your study_ranges folder ` +
+    `(files named like <b>CO@25__raise_2bb.txt</b>). The bots, the hint and the coach use them where they cover a spot. ` +
+    `They're kept in this browser on this device and never uploaded.</p>` +
     `<button class="bigbtn" id="newsess">New session with these settings</button>` +
     `<p class="c-text" style="color:var(--faint);font-size:12px;margin-top:14px">Speed, skip and hint apply right away; table, prize pool and blinds start a new session. ` +
     `On iPhone: Share → Add to Home Screen to keep it like an app.</p>`;
@@ -468,6 +532,21 @@ function openSettings() {
   $("tableno").onchange = (e) => { const n = Number(e.target.value); settings.table = n >= 1 && n <= 250 ? n : 0; save(); };
   $("custom").onchange = (e) => { settings.custom = Number(e.target.value) || 2000000; save(); };
   $("newsess").onclick = () => newSession();
+  $("chartsload").onclick = () => $("chartsfile").click();
+  $("chartsfile").onchange = async (e) => {
+    const list = Array.from(e.target.files || []);
+    if (!list.length) return;
+    $("chartsinfo").textContent = "Reading your charts…";
+    try { await pickCharts(list); openSettings(); toast(chartsText(), 3500); }
+    catch (err) { $("chartsinfo").textContent = err.message; }
+  };
+  if ($("chartsdel")) $("chartsdel").onclick = async () => { await removeCharts(); openSettings(); toast("Your charts removed", 2500); };
+}
+
+function chartsText() {
+  if (!myCharts) return "None loaded: the bots play the built-in Monker sims.";
+  const name = myCharts.names.length === 1 ? myCharts.names[0] : `${myCharts.names.length} files`;
+  return `Using your charts: ${myCharts.charts} charts in ${myCharts.spots} spots (${name}, loaded ${myCharts.date}).`;
 }
 
 function showOver() {
@@ -506,6 +585,7 @@ if (window.ResizeObserver) new ResizeObserver(fitTable).observe($("tablewrap"));
 fitTable();
 
 async function start() {
+  await restoreCharts();
   $("loading").classList.add("hidden");
   await newSession();
 }

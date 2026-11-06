@@ -8,6 +8,7 @@ needs and your ranges (my_ranges/, plus the built-in tables) go into docs/play/a
 """
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -70,6 +71,15 @@ def main():
             dest = out / p.relative_to(ROOT / "web" / "site")
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(p, dest)
+    # the phone keeps the site in its cache: a new cache name for every new build makes it
+    # fetch the new version (the service worker file itself is always checked for changes)
+    digest = hashlib.sha1()
+    for p in sorted(play.rglob("*")):
+        if p.is_file() and p.name != "sw.js":
+            digest.update(p.relative_to(play).as_posix().encode())
+            digest.update(p.read_bytes())
+    sw = play / "sw.js"
+    sw.write_text(sw.read_text().replace('"ftt-v1"', f'"ftt-{digest.hexdigest()[:10]}"'))
     (out / ".nojekyll").write_text("")
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
     print(f"built {out} ({size / 1e6:.1f} MB; app.zip {(play / 'app.zip').stat().st_size / 1e6:.2f} MB)")

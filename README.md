@@ -184,6 +184,8 @@ table waits while you look back, so you come back to the same decision.
 **Study charts** (`study_ranges/`, not included here): put charts from your own study
 tools in that folder and the trainer uses them too (one file per spot and action, as in
 `my_ranges/`). The contest bot never reads them.
+In the browser version: **Settings → My charts** loads a zip of them on your phone only
+(kept in that browser, never uploaded).
 
 **Grades**: every decision gets one: the bot's play is an **Elite pro decision**; otherwise
 your option's rank (by simulated EV, or by how often the bot's range takes it while EVs

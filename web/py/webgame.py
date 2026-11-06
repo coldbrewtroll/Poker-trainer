@@ -353,12 +353,65 @@ class WebGame:
 GAME = WebGame()
 
 
+BASE = {}   # the ranges the page ships (the author's sims), before any of your own charts
+
+
 def load_ranges(path):
     """The study table (your sims) from the JSON the page ships."""
+    global BASE
     d = json.loads(Path(path).read_text())
-    T.STUDY_TABLE = {spot: {float(dep): acts for dep, acts in deps.items()}
-                     for spot, deps in d.items()}
+    BASE = {spot: {float(dep): acts for dep, acts in deps.items()} for spot, deps in d.items()}
+    T.STUDY_TABLE = {spot: dict(deps) for spot, deps in BASE.items()}
     return len(T.STUDY_TABLE)
+
+
+def set_charts(folder):
+    """Your own study charts, loaded on your device only (they never leave it): the files
+    in `folder` (range files named like my_ranges ones, and/or zips of them), on top of the
+    shipped ranges, as the desktop trainer does with study_ranges/. None removes them.
+    The table is changed in place, so the bots already at the table use them at once."""
+    import contextlib
+    import io
+    import shutil
+    import zipfile
+    from solver.import_ranges8 import load_folder
+    flat = Path("/tmp/my_charts_flat")
+    shutil.rmtree(flat, ignore_errors=True)
+    flat.mkdir(parents=True)
+    files = 0
+
+    def keep(name, data):
+        nonlocal files
+        name = Path(name).name
+        if "__" in Path(name).stem and not name.startswith((".", "_")):
+            (flat / name).write_bytes(data)
+            files += 1
+
+    if folder:
+        for f in sorted(Path(folder).iterdir()):
+            if f.suffix.lower() == ".zip":
+                try:
+                    with zipfile.ZipFile(f) as z:
+                        for info in z.infolist():
+                            if not info.is_dir() and "__MACOSX" not in info.filename:
+                                keep(info.filename, z.read(info))
+                except zipfile.BadZipFile:
+                    pass
+            elif f.is_file():
+                keep(f.name, f.read_bytes())
+    study = {}
+    if files:
+        with contextlib.redirect_stdout(io.StringIO()):
+            study = load_folder(flat)
+    T.STUDY_TABLE.clear()
+    for spot, deps in BASE.items():
+        T.STUDY_TABLE[spot] = dict(deps)
+    for spot, deps in study.items():
+        T.STUDY_TABLE.setdefault(spot, {}).update(deps)
+    if GAME.analyst is not None:
+        GAME.analyst.grid_cache.clear()
+    charts = sum(len(acts) for deps in study.values() for acts in deps.values())
+    return {"files": files, "charts": charts, "spots": len(study)}
 
 
 def handle(msg):
@@ -375,6 +428,8 @@ def handle(msg):
         out = g.act(m["move"])
     elif cmd == "coach":
         out = g.coach(bool(m.get("deep")))
+    elif cmd == "charts":
+        out = set_charts(m.get("folder"))
     elif cmd == "skip":
         g.skip = bool(m.get("on"))
         out = {"skip": g.skip}
