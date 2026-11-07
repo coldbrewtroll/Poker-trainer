@@ -2,7 +2,7 @@
 // load from here next time, and it works offline. build.py renames VERSION on every build.
 // The engine (Pyodide) and the avatars sit in their own cache, kept across updates, so an
 // update only downloads the game's own files (about 1 MB).
-const VERSION = "ftt-75ee14e164";
+const VERSION = "ftt-770d86e29f";
 const ENGINE = "ftt-engine-pyodide-0.27.8";
 const APP = ["./", "index.html", "app.css", "app.js", "worker.js", "app.zip", "manifest.webmanifest"];
 const PYODIDE = ["pyodide/pyodide.js", "pyodide/pyodide.asm.js", "pyodide/pyodide.asm.wasm",

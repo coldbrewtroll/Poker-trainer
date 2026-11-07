@@ -1,1 +1,1 @@
-AA,KK,QQ
+AA,AKs:0.212,KK,QQ

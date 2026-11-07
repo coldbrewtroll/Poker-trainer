@@ -1,1 +1,1 @@
-AA,AKs,KK,TT:0.784
+AA,AKs,KK,TT:0.984

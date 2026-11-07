@@ -1,1 +1,1 @@
-AA,AKs,KK,QQ:0.002
+AA,AKs,KK,QQ:0.001

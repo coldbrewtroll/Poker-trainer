@@ -1,1 +1,1 @@
-AA,AKs,JJ,KK,QQ
+AA,AKs,JJ:0.946,KK,QQ

@@ -1,1 +1,1 @@
-AKo,JJ,QQ
+AKo:0.953,JJ,QQ

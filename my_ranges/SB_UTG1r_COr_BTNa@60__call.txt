@@ -1,1 +1,1 @@
-AA,KK,QQ
+AA,AKs:0.158,KK,QQ

@@ -1,1 +1,1 @@
-AA,JJ,KK
+AA,JJ,KK,QQ

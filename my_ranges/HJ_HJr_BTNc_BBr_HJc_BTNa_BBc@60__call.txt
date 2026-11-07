@@ -1,1 +1,1 @@
-AA,JJ,KK,TT
+AA,JJ,KJs:0.004,KK,TT

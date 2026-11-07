@@ -1,1 +1,1 @@
-AA,AKo:0.713,AKs,KK,QQ
+AA,AKo:0.648,AKs,KK,QQ
