@@ -197,6 +197,7 @@ class Postflop8Mixin:
     # cheap_need or better; a full house we hold calls any single bet up to a pot.
     cheap_call = 0
     cheap_need = 0.22
+    cheap_any = 0.11       # ... and any pair (any draw before the river) at this price or better
     river_top = 0.55       # top pair, any kicker
     river_good = 0.65      # overpair / top pair with a good kicker
     river_strong = 0.75    # two pair, sets, straights, flushes, full houses
@@ -761,6 +762,10 @@ class Postflop8Mixin:
             frac = s.to_call / max(1, pot - s.to_call)
             if cls in ("strong", "top") and price <= self.cheap_need:
                 return "call", 0
+            hr = [c >> 2 for c in hole]
+            paired = hr[0] == hr[1] or any(r in [c >> 2 for c in board] for r in hr)
+            if price <= self.cheap_any and (paired or (len(board) < 5 and cls in ("draw", "equity"))):
+                return "call", 0          # (9:1 or better: any pair, or a draw before the river)
             if full and raises <= 1 and frac <= 1.05:
                 return "call", 0
 
