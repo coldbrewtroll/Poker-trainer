@@ -189,6 +189,15 @@ class Postflop8Mixin:
     # Every other spot where we may bet first (probes, delayed c-bets, stabs, multiway and
     # limped pots), by hand type instead of raw equity against unnarrowed ranges (1: on).
     gen_plan = 0
+    # River, last to act and checked to (1: on): top pair or better always bets for value,
+    # at least half pot (river_top); second pair mixes small bets (river_second_small, at
+    # river_second share) with checks; everything else follows the plans above.
+    river_ip = 0
+    river_top = 0.55       # top pair, any kicker
+    river_good = 0.65      # overpair / top pair with a good kicker
+    river_strong = 0.75    # two pair, sets, straights, flushes, full houses
+    river_second = 0.4     # second pair: bet this often...
+    river_second_small = 0.33   # ... this size
     bp_big = 0.75        # big size (share of the pot)
     bp_small = 0.45      # small turn size
     bp_thin = 0.5        # river thin-value size
@@ -496,6 +505,41 @@ class Postflop8Mixin:
                 outs += 1
         return "open" if outs >= 2 else "gut" if outs == 1 else None
 
+    @staticmethod
+    def _checked_to_last(s):
+        """River-style "in position": everyone else still in has checked this street to us."""
+        others = [p.seat for p in s.players if not p.folded and p.seat != s.my_seat]
+        acts = {seat: a for st, seat, a, _ in s.history if st == s.street}
+        return bool(others) and all(acts.get(x) == "check" for x in others)
+
+    @staticmethod
+    def _second_pair(hole, board):
+        """A pair with the board's second card, or a pocket pair between its top two."""
+        hr = [c >> 2 for c in hole]
+        br = sorted({c >> 2 for c in board}, reverse=True)
+        if len(br) < 2:
+            return False
+        if hr[0] == hr[1]:
+            return br[1] < hr[0] < br[0]
+        return br[1] in hr and br[0] not in hr
+
+    def _river_value(self, s, hole, board, pot):
+        """river_ip: a move, or None to leave it to the other plans."""
+        made, _ = self._completes(hole, board)
+        mc = self._made_class(hole, board)
+        bet = lambda frac: self.raise_to(s, s.my_bet + frac * pot)   # noqa: E731
+        if made or mc == "strong":
+            return bet(self.river_strong)
+        if mc == "good":
+            return bet(self.river_good)
+        if self._cbet_class(hole, board) == "top":
+            return bet(self.river_top)
+        if self._second_pair(hole, board):
+            if self.rng.random() < self.river_second:
+                return bet(self.river_second_small)
+            return "check", 0
+        return None
+
     def _general(self, s, hole, board, pot, k):
         """gen_plan: bet or check by hand type, street, position and players."""
         made, scary = self._completes(hole, board)
@@ -608,6 +652,12 @@ class Postflop8Mixin:
         pot = s.pot
         stack_total = s.my_stack + s.my_bet
         river = len(board) == 5
+
+        if (s.to_call == 0 and self.river_ip and len(board) == 5 and
+                self._checked_to_last(s)):
+            mv = self._river_value(s, hole, board, pot)
+            if mv is not None:
+                return mv
 
         if s.to_call == 0 and self.donk_check and self._donk_spot(s):
             r = self.rng.random()
