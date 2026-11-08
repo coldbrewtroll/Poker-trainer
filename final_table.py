@@ -1045,7 +1045,7 @@ def price_guard(s, move):
     return move
 
 
-STRONG_BEATEN = 0.04   # after the flop: a hand fewer than 4% of random hands beat...
+STRONG_BEATEN = 0.06   # after the flop: a hand fewer than 6% of random hands beat...
 STRONG_NEED = 0.40     # ... doesn't fold to a bet needing 40% or less (heads-up or 3-way)
 CHEAP_NEED = 0.10      # and a hand better than half of all hands calls a bet this cheap
 

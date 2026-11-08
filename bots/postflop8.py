@@ -186,6 +186,9 @@ class Postflop8Mixin:
     # After our bet was called (flop c-bet, then turn barrel), heads-up, first to bet: the
     # next street by hand type and by what the new card did (1: on).
     barrel_plan = 0
+    # Every other spot where we may bet first (probes, delayed c-bets, stabs, multiway and
+    # limped pots), by hand type instead of raw equity against unnarrowed ranges (1: on).
+    gen_plan = 0
     bp_big = 0.75        # big size (share of the pot)
     bp_small = 0.45      # small turn size
     bp_thin = 0.5        # river thin-value size
@@ -280,6 +283,14 @@ class Postflop8Mixin:
         hr = sorted((c >> 2 for c in hole), reverse=True)
         br = [c >> 2 for c in board]
         top = max(br)
+        trips = [r for r in set(br) if br.count(r) >= 3]
+        if trips:      # (trips on the board: a pair of ours or pairing the board is a full house)
+            pair = hr[0] if hr[0] == hr[1] else max((r for r in hr if r in br and r not in trips),
+                                                    default=None)
+            if any(r in trips for r in hr):
+                return "strong"                  # quads
+            if pair is not None:
+                return "strong" if pair >= 6 else "good"
         if hr[0] == hr[1]:
             if hr[0] in br:
                 return "strong"
@@ -425,7 +436,10 @@ class Postflop8Mixin:
         new = board[-1] >> 2
         r = self.rng.random()
         bet = lambda frac: self.raise_to(s, s.my_bet + frac * pot)   # noqa: E731
+        last = any(st == s.street and seat != s.my_seat for st, seat, _, _ in s.history)
         if cls == "strong":
+            if river and last:
+                return bet(self.bp_big)          # (checked to on the river: nothing to trap)
             return bet(self.bp_big) if r < self.bp_strong else ("check", 0)
         if cls == "top":
             if river:
@@ -482,6 +496,49 @@ class Postflop8Mixin:
                 outs += 1
         return "open" if outs >= 2 else "gut" if outs == 1 else None
 
+    def _general(self, s, hole, board, pot, k):
+        """gen_plan: bet or check by hand type, street, position and players."""
+        made, scary = self._completes(hole, board)
+        cls = "strong" if made else self._cbet_class(hole, board)
+        river = len(board) == 5
+        flop = len(board) == 3
+        hu = k == 1
+        checked_to = any(st == s.street and seat != s.my_seat for st, seat, _, _ in s.history)
+        pos = 1.0 if checked_to else 0.6        # (first to act: less bluffing)
+        r = self.rng.random()
+        bet = lambda frac: self.raise_to(s, s.my_bet + frac * pot)   # noqa: E731
+        if cls == "strong":
+            if river and checked_to and hu:
+                return bet(0.75)
+            return bet(0.75) if r < 0.85 else ("check", 0)
+        if cls == "top":
+            good = self._made_class(hole, board) == "good"
+            if river:
+                if scary:
+                    p = 0.2 if good else 0.0
+                else:
+                    p = (0.6 if good else 0.35) * (1.0 if hu else 0.6)
+                return bet(0.5) if r < p * (1.0 if checked_to else 0.8) else ("check", 0)
+            p = (0.75 if hu else 0.6) * (0.6 if scary else 1.0)
+            return bet(0.6) if r < p else ("check", 0)
+        if cls == "medium":
+            p = (0.12 if flop else 0.08 if not river else 0.05) * (1.0 if hu else 0.3)
+            if river and not checked_to:
+                p = 0.0
+            return bet(0.33) if r < p * self._bf else ("check", 0)
+        if cls == "draw" and not river:
+            p = (0.4 if hu else 0.2) * pos
+            return bet(0.5) if r < p * self._semi() else ("check", 0)
+        # overcards, backdoors, air, busted draws
+        if river:
+            p = (0.22 if hu else 0.03) * pos
+            return bet(0.75) if r < p * self._bf else ("check", 0)
+        if cls == "equity":
+            p = (0.3 if flop else 0.2) * (1.0 if hu else 0.25) * pos
+        else:
+            p = (0.2 if flop else 0.15) * (1.0 if hu else 0.2) * pos
+        return bet(0.33 if flop else 0.5) if r < p * self._bf else ("check", 0)
+
     def _later_defence(self, s, hole, board, pot):
         """cont_later: "call", or None for the usual logic."""
         streets = ["preflop", "flop", "turn", "river"]
@@ -491,13 +548,11 @@ class Postflop8Mixin:
         live = [p for p in s.players if not p.folded]
         if len(live) != 2:
             return None
-        prev = [(seat, a) for st, seat, a, _ in s.history if st == streets[cur - 1]]
         now = [(seat, a) for st, seat, a, _ in s.history if st == s.street]
-        pb = [seat for seat, a in prev if a == "raise"]
         nb = [seat for seat, a in now if a == "raise"]
-        if len(pb) != 1 or pb[0] == s.my_seat or prev[-1][1] != "call" or nb != pb:
+        if len(nb) != 1 or nb[0] == s.my_seat:     # (one bet, not a raise of ours)
             return None
-        opp = next(p for p in s.players if p.seat == pb[0])
+        opp = next(p for p in s.players if p.seat == nb[0])
         eff = min(s.my_stack + s.my_bet, opp.stack + opp.bet) / s.big_blind
         if eff < self.cont_min_bb or s.to_call >= 0.6 * s.my_stack:
             return None
@@ -591,6 +646,8 @@ class Postflop8Mixin:
 
         if s.to_call == 0 and self.barrel_plan and self._followup_spot(s):
             return self._barrel(s, hole, board, pot)
+        if s.to_call == 0 and self.gen_plan:
+            return self._general(s, hole, board, pot, k)
 
         if s.to_call == 0:
             if eq >= self.value_big * f:

@@ -714,7 +714,9 @@ class Analyst:
 # and card: value big, live draws small, air on scare cards, gives up on blanks; on the
 # river thin value with top pair and big bluffs with missed draws (barrel_plan). Facing
 # those barrels it keeps top pairs, calls draws at a price and catches some bluffs with
-# weaker pairs (cont_later).
+# weaker pairs (cont_later). Every other spot where it can bet first (probes, stabs,
+# multiway, limped pots) goes by hand type too: value bets, medium pairs check, draws and
+# air bluff sparingly, rarely into two or more players (gen_plan).
 STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pref=1.4;"
          "small3_value=0.08;small3_margin=0.06;small3_lists=2;behind_pen=0.025;"
          "short_suited_pen=0.1;jam_width_k=2.0;jam_width_depth=5;small3_bluff_ip=0.4;"
@@ -725,7 +727,7 @@ STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pr
          "limp_pref_suited=4.0;iso_value=0.04;bb_iso=0.2;caller_exp_bb=0.4;limped_real=0.8;"
          "limped_call_pref=2.0;small_bet_margin=1;stretch_down=1;deep_jam_bb=24;deep_jam_k=0.4;"
          "donk_check=1;donk_texture=1;xr=1;cont_rule=1;cbet_plan=1;"
-         "barrel_plan=1;cont_later=1")
+         "barrel_plan=1;cont_later=1;gen_plan=1")
 STUDY_TABLE = None  # your study charts (study_ranges/) + imported sims, loaded at start
 STUDY_FOLDERS = ("my_ranges", "study_ranges")   # read in this order (later ones win)
 PLAYERS_FOR_SOLVES = 8      # which solved tables to use (set from --players)
