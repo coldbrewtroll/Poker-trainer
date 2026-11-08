@@ -193,6 +193,10 @@ class Postflop8Mixin:
     # at least half pot (river_top); second pair mixes small bets (river_second_small, at
     # river_second share) with checks; everything else follows the plans above.
     river_ip = 0
+    # Facing a bet (1: on): top pair or better calls when the price (ICM included) is
+    # cheap_need or better; a full house we hold calls any single bet up to a pot.
+    cheap_call = 0
+    cheap_need = 0.22
     river_top = 0.55       # top pair, any kicker
     river_good = 0.65      # overpair / top pair with a good kicker
     river_strong = 0.75    # two pair, sets, straights, flushes, full houses
@@ -745,6 +749,19 @@ class Postflop8Mixin:
                     return "call", 0               # (the rest of them: call)
             if (self.cont_rule and icm_ok and eff >= self.cont_min_bb and
                     s.to_call < 0.5 * s.my_stack and self._continue_hand(hole, board)):
+                return "call", 0
+
+        if self.cheap_call:
+            price = need_icm if icm else min(s.to_call, s.my_stack) / (pot + min(s.to_call, s.my_stack))
+            made, _ = self._completes(hole, board)
+            cls = "strong" if made else self._cbet_class(hole, board)
+            sc = evaluate(hole + board)
+            full = (sc >> 20) >= 6 and (len(board) < 5 or sc != evaluate(board))
+            raises = sum(1 for st, _, a, _ in s.history if st == s.street and a == "raise")
+            frac = s.to_call / max(1, pot - s.to_call)
+            if cls in ("strong", "top") and price <= self.cheap_need:
+                return "call", 0
+            if full and raises <= 1 and frac <= 1.05:
                 return "call", 0
 
         if self.cont_later and icm_ok:
