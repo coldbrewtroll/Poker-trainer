@@ -847,9 +847,38 @@ def cached_folders(folders):
     return table
 
 
+_SOLVE_CACHE = {}
+
+
+def solve_for(s):
+    """The flop solve (flop_sims.Mapped) a heads-up flop follows, for the bots, or None."""
+    if not FLOP_SIMS or s.street != "flop":
+        return None
+    live = [p for p in s.players if not p.folded]
+    if len(live) != 2:
+        return None
+    line = flop_sims.preflop_line(s.history)
+    if not line or {line[1], line[2]} != {p.seat for p in live}:
+        return None
+    pre = tuple(h for h in s.history if h[0] == "preflop")
+    key = (tuple(s.board), pre, tuple(sorted((p.seat, p.position) for p in live)),
+           s.pot - sum(p.bet for p in s.players))
+    if key not in _SOLVE_CACHE:
+        if len(_SOLVE_CACHE) > 4000:
+            _SOLVE_CACHE.clear()
+        kind, a, b = line
+        pos = {p.seat: p.position for p in s.players}
+        pot = s.pot - sum(p.bet for p in s.players)
+        eff = min(p.stack + p.bet for p in live)
+        _SOLVE_CACHE[key] = flop_sims.find(FLOP_SIMS, kind, pos[a], pos[b], list(s.board), pot, eff)
+    return _SOLVE_CACHE[key]
+
+
 def make_study(spec, seed):
     """A trainer bot: the spec's bot, playing your study charts where you have them."""
     bot = match8.make(spec, seed)
+    if hasattr(bot, "solve_lookup"):
+        bot.solve_lookup = solve_for      # (flop solves, when the spec turns them on)
     if STUDY_TABLE and hasattr(bot, "table") and spec.startswith("contender8"):
         bot.table = STUDY_TABLE
     return FTL.with_open_policy(bot)   # (2x opens at a final table: final_table.py)

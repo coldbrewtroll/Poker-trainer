@@ -26,15 +26,14 @@ from pathlib import Path
 import icm_study as I
 from engine8 import position_names
 
-# The other seats get names: yours, and players from recent WSOP Circuit Main Event final
-# tables (Hard Rock Tulsa, Choctaw, Harrah's Cherokee, Commerce, Horseshoe Las Vegas).
+# The other seats get names: yours, and made-up ones (no real players).
 PLAYER_NAMES = [
-    "Michael Perrone", "Maxwell Young", "Blake W", "Shannon S", "Jeremy B", "David J",
-    "DJ Alexander", "Trung Pham", "Steven Snyder", "Matt Berkey", "Chance Kornuth",
-    "Michael Phizicky", "Will Givens", "Eric Salazar", "David Shaw",
-    "John Dollinger", "Russell Brooks", "Iman Alsaden", "Alex Cruz", "Alex Rindone",
-    "Tuyen Dieu", "Toby Boas", "Artur Papazyan", "Luis Concha", "Adam Swan", "Phil Laak",
-    "Matthew Blagg", "Eric Yanovsky", "Michael Persky", "Brek Schutten"]
+    "Bob Smith", "Chip Stackwell", "Al Inn", "Rick Oshea", "Penny Ante", "Rich Blinders",
+    "Seymour Flops", "Max Bett", "Ella Fold", "Callum Down", "Gus Shot", "Seth Mining",
+    "Phil Pott", "Cash Gamble", "Sandy Bagger", "Stu Straddle", "Wanda Showdown",
+    "Clay Check", "Sal Shuffle", "Barry Bluffington", "Tilda Tilt", "Rocco Rivers",
+    "Lucky Lou", "Polly Turner", "Donny Donkworth", "Felty McFelt", "Moe Money",
+    "Kat Fish", "Rex Raise", "Dee Ler"]
 
 LEVEL_HANDS = 30      # the blinds go up every 30 hands (0: never), through the WSOP
                       # Circuit Main Event levels in icm_study.WSOP_LEVELS (a 60-minute

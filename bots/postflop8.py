@@ -11,6 +11,7 @@ import time
 
 from bots.postflop import _ALL, _connects
 from cards import evaluate
+from bots import rangeplay as RP
 
 BUDGET_S = 0.00015
 BUDGET_MULTIWAY_S = 0.00025  # more opponents = more work per sample
@@ -195,6 +196,20 @@ class Postflop8Mixin:
     river_ip = 0
     # Facing a bet (1: on): top pair or better calls when the price (ICM included) is
     # cheap_need or better; a full house we hold calls any single bet up to a pot.
+    # Range engine (1: on): equity against each opponent's range followed through the hand
+    # (bots/rangeplay.py) instead of a quick top-X% estimate; the general and barrel spots
+    # then value bet by equity against the hands that call, and bluff by fold equity, with
+    # blockers, missed draws and scare cards preferred.
+    # Flop solves (1: on): on a heads-up flop with a solve for the spot (postflop/, the
+    # nearest solved flop: flop_sims.find), play the solver's strategy for our exact cards;
+    # ICM still prices calls (back to the rules when it adds icm_slack or more) and shrinks
+    # bluffs. solve_lookup(s) -> a flop_sims.Mapped or None (set by the trainer).
+    flop_solve = 0
+    solve_lookup = None
+    range_engine = 0
+    re_value = 0.58      # value bet when this far ahead of the calling range (river 0.55)
+    re_margin = 0.02     # calling: equity over the price by this much
+    _ws = None
     cheap_call = 0
     cheap_need = 0.22
     cheap_any = 0.11       # ... and any pair (any draw before the river) at this price or better
@@ -624,6 +639,85 @@ class Postflop8Mixin:
             return "call"
         return None
 
+    def _ranges(self, s, board, shares):
+        """Each opponent's weights over every combo, followed through the hand."""
+        out = []
+        for p in s.opponents:
+            pre = [(seat, a) for st, seat, a, _ in s.history if st == "preflop"]
+            raised = any(a == "raise" for _, a in pre)
+            mine = [a for seat, a in pre if seat == p.seat]
+            caller = raised and bool(mine) and mine[-1] == "call"
+            w = RP.preflop_weights(shares.get(p.seat, 1.0), caller)
+            RP.narrow(w, p.seat, s.history, board, s.pot, [q.bet for q in s.players])
+            out.append(w)
+        return out
+
+    def _range_bet(self, s, hole, board, pot, k, ws, rp):
+        """range_engine, first to bet: value by equity against the calling range, bluffs
+        and semi-bluffs by fold equity (blockers, missed draws, scare cards preferred)."""
+        river, flop = len(board) == 5, len(board) == 3
+        B = RP.Board(board)
+        cls = RP.classify(hole[0], hole[1], B)
+        calls = [RP.call_weights(w, board) for w in ws]
+        eq_call = RP.equity(hole, board, calls, self.rng, 200)
+        bet = lambda frac: self.raise_to(s, s.my_bet + frac * pot)   # noqa: E731
+        need_v = (0.55 if river else self.re_value) + 0.5 * rp
+        if eq_call is not None and eq_call >= need_v:
+            if river:
+                return bet(0.75 if eq_call >= 0.7 else 0.5)
+            return bet(0.75 if cls in (RP.STRONG, RP.TOP) else 0.5)
+        if cls in (RP.TOP, RP.MEDIUM, RP.STRONG):
+            return "check", 0                     # (showdown value: no bluffing it away)
+        dead = set(hole) | set(board)
+        F = 1.0
+        for w in ws:
+            F *= RP.fold_share(w, board, dead)
+        size = 0.75 if river else 0.5 if not flop else 0.33
+        need_f = size / (1 + size)
+        edge = F / need_f if need_f else 0.0
+        r = self.rng.random()
+        if river:
+            p = 0.35 * edge
+            suits = B.suits
+            for c in hole:                        # blockers: a high card of the flush suit
+                if suits[c & 3] >= 3 and (c >> 2) >= 10:
+                    p *= 1.5
+                    break
+            if RP.classify(hole[0], hole[1], RP.Board(board[:4])) == RP.DRAW:
+                p *= 1.3                          # a missed draw
+            return bet(size) if r < min(0.6, p) * self._bf else ("check", 0)
+        if cls == RP.DRAW:
+            p = 0.45 * edge
+            return bet(size) if r < min(0.7, p) * self._semi() else ("check", 0)
+        p = (0.25 if cls == RP.EQUITY else 0.12) * edge
+        if not flop:
+            new = board[-1] >> 2
+            if new >= 9 and new > max(c >> 2 for c in board[:-1]):
+                p *= 1.8                          # a scare card
+        return bet(size) if r < min(0.5, p) * self._bf else ("check", 0)
+
+    def _solver_move(self, s, hole, board, icm):
+        """The flop solve's move for our cards, with ICM on top; None to use the rules."""
+        try:
+            sim = self.solve_lookup(s)
+        except (OSError, ValueError, KeyError):
+            return None
+        if sim is None:
+            return None
+        mv = sim.pick(s, s.big_blind, self.rng)
+        if mv is None:
+            return None
+        if icm is not None:
+            if mv[0] == "call":
+                chip, need = icm.need(s.to_call)
+                if need - chip >= self.icm_slack:
+                    return None                    # (a real ICM price: the rules decide)
+            elif mv[0] == "raise" and self._bf < 1.0:
+                cls = self._cbet_class(hole, board)
+                if cls in ("equity", "air") and self.rng.random() > self._bf:
+                    return ("check", 0) if not s.to_call else ("fold", 0)
+        return mv
+
     def _semi(self):
         """Semi-bluffs (real equity) shrink half as fast as bluffs under ICM."""
         return 0.5 + 0.5 * self._bf
@@ -635,6 +729,10 @@ class Postflop8Mixin:
         # bluffs: fewer when we carry the risk, a few more when they do (capped at 1.5x)
         self._bf = (min(1.5, max(0.0, 1.0 - press / self.icm_bluff_scale))
                     if self.icm_bluff_scale else 1.0)
+        if self.flop_solve and self.solve_lookup is not None and len(board) == 3:
+            mv = self._solver_move(s, hole, board, icm)
+            if mv is not None:
+                return mv
         opps = s.opponents
         shares = self.preflop_shares(s)
         specs = []
@@ -648,6 +746,12 @@ class Postflop8Mixin:
         budget = BUDGET_S if k == 1 else BUDGET_MULTIWAY_S
         eq = equity_multi(hole, board, specs, self.rng, budget_s=budget,
                           min_samples=self.min_samples if k == 1 else 6)
+        self._ws = None
+        if self.range_engine:
+            ws = self._ranges(s, board, shares)
+            e2 = RP.equity(hole, board, ws, self.rng, 300 if k == 1 else 200)
+            if e2 is not None:
+                eq, self._ws = e2, ws
         # Multiway, the same equity is worth more (fair share is 1/(k+1)), so scale the
         # betting thresholds down; bluff less into several players.
         f = 1.0 if k == 1 else 0.82 if k == 2 else 0.70
@@ -699,6 +803,9 @@ class Postflop8Mixin:
                 return self.raise_to(s, s.my_bet + size * pot)
             return "check", 0
 
+        if s.to_call == 0 and self._ws is not None and (
+                (self.barrel_plan and self._followup_spot(s)) or self.gen_plan):
+            return self._range_bet(s, hole, board, pot, k, self._ws, rp)
         if s.to_call == 0 and self.barrel_plan and self._followup_spot(s):
             return self._barrel(s, hole, board, pot)
         if s.to_call == 0 and self.gen_plan:
@@ -786,6 +893,10 @@ class Postflop8Mixin:
             return "fold", 0  # nothing to continue with: no pair, no draw, no overcards
             # (with small_bet_margin, a great price is called on equity alone)
         bet_frac = s.to_call / max(pot - s.to_call, 1)
+        if self._ws is not None:               # (range equity: just the price, plus a little)
+            if eq >= self.raise_eq * f and s.min_raise_to:
+                return self.raise_to(s, s.opp_bet + pot + s.to_call)
+            return ("call", 0) if eq >= need + self.re_margin else ("fold", 0)
         base = self.margin_base
         if self.small_bet_margin:
             base *= min(1.0, bet_frac / 0.5)

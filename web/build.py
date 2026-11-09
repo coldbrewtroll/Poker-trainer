@@ -23,7 +23,7 @@ PY_FILES = [
     "bots/__init__.py", "bots/contender.py", "bots/contender8.py", "bots/lines.py",
     "bots/lines8.py", "bots/opponent.py", "bots/opponent8.py", "bots/postflop.py",
     "bots/postflop8.py", "bots/preflop8.py", "bots/preflop_data.py", "bots/pushfold_table.py",
-    "bots/ranges.py", "bots/shortstack.py", "bots/starter.py", "cards.py", "engine.py",
+    "bots/rangeplay.py", "bots/ranges.py", "bots/shortstack.py", "bots/starter.py", "cards.py", "engine.py",
     "engine8.py", "final_table.py", "flop_sims.py", "icm_study.py", "match.py", "match8.py",
     "solver/__init__.py", "solver/equity.py", "solver/import_ranges.py",
     "solver/import_ranges8.py", "tournament.py", "trainer8.py", "web/py/tkstub.py",
@@ -64,6 +64,10 @@ def main():
         z.writestr("ranges.json", ranges_json())
     av = play / "avatars"
     av.mkdir(exist_ok=True)
+    keep = {p.name for p in (ROOT / "avatars").glob("*.png")}
+    for p in av.glob("*.png"):          # (pictures of players no longer in the list)
+        if p.name not in keep:
+            p.unlink()
     for p in (ROOT / "avatars").glob("*.png"):
         shutil.copy2(p, av / p.name)
     for p in (ROOT / "web" / "site").rglob("*"):

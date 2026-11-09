@@ -3,5 +3,5 @@ you), plus a dimmed copy for folded seats (_dim). Named <player_name>_<size>.png
 with no picture shows its initials instead.
 
 Art: "Open Peeps" by Pablo Stanley, CC0 1.0 (public domain: free for any use, no credit
-needed), generated with DiceBear (MIT licence, dicebear.com), each seeded by the player's
-name.
+needed), generated with DiceBear (MIT licence, dicebear.com). The players' names are made up
+(no real players).
