@@ -720,7 +720,8 @@ class Analyst:
 # last: top pair or better always value bets half pot or more; second pair mixes small bets
 # and checks (river_ip). Facing a bet it keeps top pair or better at 4:1 or better (ICM
 # included), and a full house of its own never folds to one bet of a pot or less
-# (cheap_call).
+# (cheap_call). On a heads-up flop with a solve for the spot (postflop/: TexasSolver or
+# Pio), it plays the solver's strategy, ICM on top (flop_solve).
 STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pref=1.4;"
          "small3_value=0.08;small3_margin=0.06;small3_lists=2;behind_pen=0.025;"
          "short_suited_pen=0.1;jam_width_k=2.0;jam_width_depth=5;small3_bluff_ip=0.4;"
@@ -732,7 +733,7 @@ STUDY = ("contender8:blind_curve=1;open_mc=1;jam_cap=1.2;call_pref_all=1;call_pr
          "limped_call_pref=2.0;small_bet_margin=1;stretch_down=1;deep_jam_bb=24;deep_jam_k=0.4;"
          "donk_check=1;donk_texture=1;xr=1;cont_rule=1;cbet_plan=1;"
          "barrel_plan=1;cont_later=1;gen_plan=1;"
-         "river_ip=1;cheap_call=1")
+         "river_ip=1;cheap_call=1;flop_solve=1")
 STUDY_TABLE = None  # your study charts (study_ranges/) + imported sims, loaded at start
 STUDY_FOLDERS = ("my_ranges", "study_ranges")   # read in this order (later ones win)
 PLAYERS_FOR_SOLVES = 8      # which solved tables to use (set from --players)
@@ -1212,7 +1213,8 @@ class Paced:
         if app.mode == "Spots" and app.director and s.street == "flop" and \
                 hasattr(app.director, "flop_move") and s.my_seat == app.director.villain:
             sim_move = app.director.flop_move(s, sample=True)
-        if sim_move is None and app.mode in ("Play", "Final table") and s.street == "flop":
+        if (sim_move is None and app.mode in ("Play", "Final table") and s.street == "flop"
+                and not getattr(self.bot, "flop_solve", 0)):   # (else the bot plays it, ICM on top)
             sim = app.flop_sim(s)
             if sim is not None:
                 sim_move = sim.pick(s, BB, random)

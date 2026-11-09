@@ -27,6 +27,41 @@ BOARD_RE = re.compile(r"^(?:[2-9TJQKA][cdhs]){3}$")
 KEEP_LOADED = 30  # solves held in memory at once (each is ~1 MB once loaded)
 _LOADED = OrderedDict()
 
+# The standard order of the 1326 hands (solver/tx_export.py writes it; packed files say
+# "std" instead of listing them).
+_CARDS = [r + s_ for r in "23456789TJQKA" for s_ in "cdhs"]
+STD_HANDS = [_CARDS[j] + _CARDS[i] for i in range(52) for j in range(i + 1, 52)]
+
+
+def pack(d):
+    """A solve made small for the phone: frequencies and range weights as one byte each
+    (0-250, x4 = per mille), base64; the standard hand order as "std"."""
+    import base64
+    def enc(row):
+        return base64.b64encode(bytes(min(250, max(0, round(v / 4))) for v in row)).decode()
+    out = dict(d)
+    if d["hands"] == STD_HANDS:
+        out["hands"] = "std"
+    out["ranges"] = {k: enc(v) for k, v in d["ranges"].items()}
+    out["nodes"] = {k: dict(n, strategy=[enc(r) for r in n["strategy"]]) for k, n in d["nodes"].items()}
+    out["packed"] = 1
+    return out
+
+
+def unpack(d):
+    import base64
+    if not d.get("packed"):
+        return d
+    def dec(t):
+        return [b * 4 for b in base64.b64decode(t)]
+    d = dict(d)
+    if d["hands"] == "std":
+        d["hands"] = STD_HANDS
+    d["ranges"] = {k: dec(v) for k, v in d["ranges"].items()}
+    d["nodes"] = {k: dict(n, strategy=[dec(r) for r in n["strategy"]]) for k, n in d["nodes"].items()}
+    d.pop("packed")
+    return d
+
 
 def load_all(folder=FOLDER):
     """Every solve in postflop/, by name only (postflop/<depth>bb_<spot>/<board>.json): the
@@ -73,7 +108,7 @@ class FlopSim:
     @property
     def d(self):
         if self._d is None:
-            self._d = json.loads(Path(self.path).read_text())
+            self._d = unpack(json.loads(Path(self.path).read_text()))
             self._index = None
         if self.path is not None:
             _LOADED[id(self)] = self

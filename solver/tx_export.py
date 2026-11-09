@@ -15,10 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 POSTFLOP_ORDER = ["SB", "BB", "UTG", "UTG1", "LJ", "HJ", "CO", "BTN"]
+sys.path.insert(0, str(ROOT))
+from flop_sims import STD_HANDS  # noqa: E402
+
 RANKS = "23456789TJQKA"
 SUITS = "cdhs"
-CARDS = [r + s for r in RANKS for s in SUITS]
-HANDS = [CARDS[j] + CARDS[i] for i in range(52) for j in range(i + 1, 52)]   # high card first
+HANDS = STD_HANDS                  # (the trainer's standard order, high card first)
 INDEX = {frozenset((h[:2], h[2:])): k for k, h in enumerate(HANDS)}
 
 

@@ -266,7 +266,12 @@ class WebGame:
 
     def advisor_move(self, s):
         self.advisor.plan3 = None
-        return self.advisor.act(s)
+        adv = self.advisor.act(s)
+        if s.street == "flop":
+            sim = self.app.flop_sim(s)       # (a flop solve for this spot: its play is the hint,
+            if sim is not None:              # and the review grades the flop against it)
+                adv = sim.pick(s, BB) or adv
+        return adv
 
     # -- the coach --
     def coach(self, deep=False):
@@ -535,6 +540,10 @@ def load_ranges(path):
     d = json.loads(Path(path).read_text())
     BASE = {spot: {float(dep): acts for dep, acts in deps.items()} for spot, deps in d.items()}
     T.STUDY_TABLE = {spot: dict(deps) for spot, deps in BASE.items()}
+    try:
+        T.load_flop_sims()          # (the flop solves in the bundle: read when used)
+    except OSError:
+        pass
     return len(T.STUDY_TABLE)
 
 

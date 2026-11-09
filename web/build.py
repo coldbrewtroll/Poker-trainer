@@ -62,6 +62,12 @@ def main():
         for f in PY_FILES + DATA_FILES:
             z.write(ROOT / f, f)
         z.writestr("ranges.json", ranges_json())
+        # the flop solves (postflop/), packed small: the bots play them, read when used
+        import flop_sims
+        for f in sorted((ROOT / "postflop").glob("*/*.json")):
+            d = json.loads(f.read_text())
+            z.writestr(f"postflop/{f.parent.name}/{f.name}",
+                       json.dumps(flop_sims.pack(d), separators=(",", ":")))
     av = play / "avatars"
     av.mkdir(exist_ok=True)
     keep = {p.name for p in (ROOT / "avatars").glob("*.png")}
