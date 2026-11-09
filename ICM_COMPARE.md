@@ -13,13 +13,13 @@ Stacks are in big blinds, listed in seat order from the first to act to the big 
 
 Prize money left: $416,650
 
-**SB jams first in** (everyone before folds): 73.7% of hands (chip EV: 73.7%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+, 65o+`
+**SB jams first in** (everyone before folds): 74.0% of hands (chip EV: 74.0%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+, 65o+`
 
 - **BB calls** 56.5% (chip EV 56.5%), needs 42.1% equity  
-  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q2o+, J7o+, T8o+, 98o+`
+  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q3o+, J7o+, T8o+, 98o+`
 
-Value of jamming over folding for the SB (ICM, $): K7o +6,012, Q4s +3,465, T9o +3,007, 22 +5,812
+Value of jamming over folding for the SB (ICM, $): K7o +5,994, Q4s +3,472, T9o +3,048, 22 +5,832
 
 ## 2. 3 left: BTN 20, SB 12, BB 6
 
@@ -31,15 +31,15 @@ Value of jamming over folding for the SB (ICM, $): K7o +6,012, Q4s +3,465, T9o +
 
 Prize money left: $534,425
 
-**BTN jams first in** (everyone before folds): 73.6% of hands (chip EV: 41.5%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q2o+, J4o+, T6o+, 96o+, 86o+, 76o+, 65o+`
+**BTN jams first in** (everyone before folds): 71.4% of hands (chip EV: 41.5%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 74s+, 63s+, 53s+, 43s+, A2o+, K2o+, Q2o+, J5o+, T6o+, 97o+, 86o+, 76o+, 65o+`
 
-- **SB calls** 7.8% (chip EV 28.8%), needs 61.2% equity  
-  `77+, ATs+, KQs+, AJo+`
-- **BB calls** 56.6% (chip EV 67.4%), needs 42.1% equity  
-  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q2o+, J7o+, T8o+, 98o+`
+- **SB calls** 9.0% (chip EV 28.8%), needs 61.2% equity  
+  `77+, A9s+, KQs+, ATo+`
+- **BB calls** 55.9% (chip EV 67.4%), needs 42.1% equity  
+  `22+, A2s+, K2s+, Q2s+, J3s+, T6s+, 96s+, 87s+, A2o+, K2o+, Q3o+, J7o+, T8o+, 98o+`
 
-Value of jamming over folding for the BTN (ICM, $): A2o +3,344, K9o +3,739, Q8s +3,000, 55 +4,458
+Value of jamming over folding for the BTN (ICM, $): A2o +3,202, K9o +3,582, Q8s +2,862, 55 +4,432
 
 ## 3. 4 left: chip leader (CO, 40 bb) first in vs 15 / 10 / 12
 
@@ -52,17 +52,17 @@ Value of jamming over folding for the BTN (ICM, $): A2o +3,344, K9o +3,739, Q8s 
 
 Prize money left: $619,000
 
-**CO jams first in** (everyone before folds): 83.1% of hands (chip EV: 31.2%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q2o+, J2o+, T6o+, T4o, 95o+, 85o+, 75o+, 64o+, 53o+`
+**CO jams first in** (everyone before folds): 80.0% of hands (chip EV: 31.2%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q2o+, J3o+, T6o+, 96o+, 85o+, 75o+, 64o+, 54o+`
 
-- **BTN calls** 4.8% (chip EV 16.9%), needs 64.6% equity  
-  `88+, AQs+, AKo+`
-- **SB calls** 15.5% (chip EV 24.2%), needs 57.9% equity  
+- **BTN calls** 5.0% (chip EV 16.9%), needs 64.6% equity  
+  `88+, AJs+, AKo+`
+- **SB calls** 15.9% (chip EV 24.3%), needs 57.9% equity  
   `66+, A5s+, K9s+, QJs+, A8o+, KJo+`
 - **BB calls** 15.5% (chip EV 25.5%), needs 58.0% equity  
   `66+, A5s+, K9s+, QJs+, A8o+, KJo+`
 
-Value of jamming over folding for the CO (ICM, $): A5o +1,321, KTo +1,213, J9s +1,217, 33 +1,660
+Value of jamming over folding for the CO (ICM, $): A5o +1,344, KTo +1,192, J9s +1,210, 33 +1,667
 
 ## 4. 5 left: SB 8 bb vs a 40 bb big blind
 
@@ -76,13 +76,13 @@ Value of jamming over folding for the CO (ICM, $): A5o +1,321, KTo +1,213, J9s +
 
 Prize money left: $680,475
 
-**SB jams first in** (everyone before folds): 60.5% of hands (chip EV: 76.2%)  
-`22+, A2s+, K2s+, Q2s+, J2s+, T5s+, 95s+, 85s+, 74s+, 64s+, 53s+, A2o+, K2o+, Q4o+, J7o+, T8o+, 97o+, 87o+`
+**SB jams first in** (everyone before folds): 60.8% of hands (chip EV: 76.2%)  
+`22+, A2s+, K2s+, Q2s+, J2s+, T4s+, 95s+, 85s+, 74s+, 64s+, 53s+, A2o+, K2o+, Q4o+, J7o+, T8o+, 97o+, 87o+`
 
-- **BB calls** 45.2% (chip EV 61.2%), needs 43.3% equity  
+- **BB calls** 45.4% (chip EV 61.3%), needs 43.3% equity  
   `22+, A2s+, K2s+, Q4s+, J7s+, T8s+, 98s+, A2o+, K2o+, Q7o+, J9o+, T9o+`
 
-Value of jamming over folding for the SB (ICM, $): A2o +3,490, K5s +2,591, Q9o +1,888, T8s +1,319
+Value of jamming over folding for the SB (ICM, $): A2o +3,668, K5s +2,753, Q9o +1,971, T8s +1,333
 
 ## 5. 6 left: HJ 15 bb first in
 
@@ -97,19 +97,19 @@ Value of jamming over folding for the SB (ICM, $): A2o +3,490, K5s +2,591, Q9o +
 
 Prize money left: $726,525
 
-**HJ jams first in** (everyone before folds): 21.5% of hands (chip EV: 24.1%)  
-`22+, A2s+, K8s+, Q9s+, J9s+, T9s+, A9o+, KTo+, QTo+`
+**HJ jams first in** (everyone before folds): 21.0% of hands (chip EV: 24.3%)  
+`22+, A2s+, K8s+, Q9s+, J9s+, T9s+, ATo+, KTo+, QTo+`
 
-- **CO calls** 7.1% (chip EV 12.8%), needs 52.7% equity  
+- **CO calls** 7.1% (chip EV 13.1%), needs 52.7% equity  
   `88+, ATs+, AJo+`
-- **BTN calls** 7.6% (chip EV 18.1%), needs 50.7% equity  
+- **BTN calls** 7.7% (chip EV 17.5%), needs 50.7% equity  
   `77+, ATs+, AJo+`
-- **SB calls** 6.6% (chip EV 14.0%), needs 53.8% equity  
+- **SB calls** 6.8% (chip EV 14.1%), needs 53.8% equity  
   `88+, AJs+, AJo+`
-- **BB calls** 5.5% (chip EV 15.7%), needs 54.7% equity  
+- **BB calls** 5.4% (chip EV 15.7%), needs 54.7% equity  
   `99+, AJs+, AQo+`
 
-Value of jamming over folding for the HJ (ICM, $): A9o +1, KJo +413, QTs +836, 66 +662
+Value of jamming over folding for the HJ (ICM, $): A9o -10, KJo +356, QTs +832, 66 +704
 
 ## 6. 8 left (full final table): UTG 10 bb
 
@@ -126,10 +126,10 @@ Value of jamming over folding for the HJ (ICM, $): A9o +1, KJo +413, QTs +836, 6
 
 Prize money left: $788,125
 
-**UTG jams first in** (everyone before folds): 14.0% of hands (chip EV: 16.7%)  
+**UTG jams first in** (everyone before folds): 13.8% of hands (chip EV: 16.2%)  
 `55+, A8s+, A5s-A3s, K9s+, QTs+, JTs+, AJo+, KJo+`
 
-- **UTG1 calls** 6.1% (chip EV 10.0%), needs 48.6% equity  
+- **UTG1 calls** 6.3% (chip EV 10.0%), needs 48.6% equity  
   `88+, AJs+, AQo+`
 - **LJ calls** 5.9% (chip EV 10.0%), needs 49.4% equity  
   `88+, AJs+, AQo+`
@@ -137,14 +137,14 @@ Prize money left: $788,125
   `88+, AJs+, AQo+`
 - **CO calls** 5.4% (chip EV 10.0%), needs 50.6% equity  
   `99+, AJs+, AQo+`
-- **BTN calls** 5.1% (chip EV 10.0%), needs 51.4% equity  
-  `99+, AQs+, AQo+`
+- **BTN calls** 5.4% (chip EV 10.0%), needs 51.4% equity  
+  `99+, AJs+, AQo+`
 - **SB calls** 5.4% (chip EV 11.9%), needs 50.9% equity  
   `99+, AJs+, AQo+`
-- **BB calls** 5.9% (chip EV 14.5%), needs 50.3% equity  
+- **BB calls** 5.9% (chip EV 14.2%), needs 50.3% equity  
   `88+, AJs+, AQo+`
 
-Value of jamming over folding for the UTG (ICM, $): AJo +544, KQo +270, A8s +131, 77 +101
+Value of jamming over folding for the UTG (ICM, $): AJo +746, KQo +286, A8s +129, 77 +77
 
 ## 7. 7 left: CO 12 bb jams, BB 25 bb to call
 
@@ -160,19 +160,19 @@ Value of jamming over folding for the UTG (ICM, $): AJo +544, KQo +270, A8s +131
 
 Prize money left: $761,525
 
-**CO jams first in** (everyone before folds): 31.8% of hands (chip EV: 32.7%)  
-`22+, A2s+, K4s+, Q6s+, J7s+, T7s+, 97s+, 87s+, A7o+, A5o-A3o, KTo+, QTo+, JTo+`
+**CO jams first in** (everyone before folds): 31.9% of hands (chip EV: 32.7%)  
+`22+, A2s+, K5s+, Q7s+, J7s+, T7s+, 97s+, 87s+, A3o+, KTo+, QTo+, JTo+`
 
-- **BTN calls** 9.2% (chip EV 24.3%), needs 52.5% equity  
-  `66+, A9s+, ATo+`
+- **BTN calls** 9.5% (chip EV 24.3%), needs 52.5% equity  
+  `66+, A8s+, ATo+`
 - **SB calls** 8.7% (chip EV 22.2%), needs 53.6% equity  
   `77+, A9s+, ATo+`
-- **BB calls** 13.2% (chip EV 25.5%), needs 49.4% equity  
+- **BB calls** 13.3% (chip EV 25.5%), needs 49.4% equity  
   `55+, A7s+, KJs+, A8o+, KQo+`
 
-Value of jamming over folding for the CO (ICM, $): A9o +1,083, KJo +789, QJs +1,529, 88 +3,578
+Value of jamming over folding for the CO (ICM, $): A9o +1,263, KJo +798, QJs +1,563, 88 +3,669
 
-**BB facing the jam** (calling vs folding, $): A9o +1,476, KJo -1,109, QJs -1,402, 88 +5,538  
+**BB facing the jam** (calling vs folding, $): A9o +1,730, KJo -1,335, QJs -1,411, 88 +5,725  
 Call range 13.6%, needs 49.4% equity
 
 ## 8. 7 left: CO 20 bb jams, BB 9 bb to call
@@ -189,20 +189,20 @@ Call range 13.6%, needs 49.4% equity
 
 Prize money left: $761,525
 
-**CO jams first in** (everyone before folds): 47.6% of hands (chip EV: 31.1%)  
-`22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 65s+, 54s+, A2o+, K7o+, Q8o+, J8o+, T8o+, 98o+`
+**CO jams first in** (everyone before folds): 46.2% of hands (chip EV: 31.2%)  
+`22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 65s+, 54s+, A2o+, K7o+, Q9o+, J8o+, T8o+, 98o+`
 
-- **BTN calls** 7.1% (chip EV 18.0%), needs 59.4% equity  
+- **BTN calls** 7.1% (chip EV 18.1%), needs 59.4% equity  
   `88+, ATs+, AJo+`
-- **SB calls** 9.1% (chip EV 21.1%), needs 56.7% equity  
-  `77+, A9s+, KQs+, ATo+`
-- **BB calls** 22.0% (chip EV 31.8%), needs 49.3% equity  
-  `44+, A2s+, K9s+, QTs+, A5o+, KTo+, QJo+`
+- **SB calls** 9.4% (chip EV 21.3%), needs 56.7% equity  
+  `77+, A8s+, KQs+, ATo+`
+- **BB calls** 21.9% (chip EV 31.8%), needs 49.3% equity  
+  `44+, A2s+, K9s+, QTs+, A4o+, KTo+`
 
-Value of jamming over folding for the CO (ICM, $): A7o +1,352, K9s +1,309, QTo +859, 44 +2,051
+Value of jamming over folding for the CO (ICM, $): A7o +1,357, K9s +1,275, QTo +858, 44 +2,083
 
-**BB facing the jam** (calling vs folding, $): A7o +1,952, K9s +1,656, QTo -1,120, 44 +1,091  
-Call range 21.3%, needs 49.3% equity
+**BB facing the jam** (calling vs folding, $): A7o +2,094, K9s +1,554, QTo -1,114, 44 +1,076  
+Call range 22.2%, needs 49.3% equity
 
 ## Small blind vs big blind: limps and the 3 bb raise (traps)
 
@@ -216,31 +216,31 @@ Stacks: CO 52.5, BTN 10.38, SB 9.88, BB 71.25
 
 | Small blind | % of hands | Range |
 |---|---|---|
-| Jam | 37.4% | `22-77, A2s+, K2s+, Q9s-Q5s, J7s+, T7s+, 96s+, 86s+, 76s+, 65s+, A2o+, K6o+, Q9o+, JTo+, T9o+` |
-| Limp | 17.2% | `88+, QTs+, Q4s-Q3s, J6s-J4s, T6s-T4s, 95s, K5o-K2o, Q8o-Q6o, J9o-J8o, T8o, 98o+` |
+| Jam | 37.6% | `22-77, A2s+, K2s+, Q9s-Q4s, J7s+, T7s+, 96s+, 86s+, 75s+, 65s+, A2o+, K6o+, Q9o+, JTo+, T9o+` |
+| Limp | 17.2% | `88+, QTs+, Q3s, J6s-J4s, T6s-T4s, 95s, K5o-K2o, Q8o-Q6o, J9o-J8o, T8o, 98o+` |
 | Raise 3 | 0.1% | `(none)` |
-| Fold | 45.4% | |
+| Fold | 45.1% | |
 
 Big blind over a limp: jam 58%, check 42% (raises `(none)`; jams `TT+, A9s+, A7s-A2s, KTs+, K4s-K2s, QTs+, Q6s-Q2s, J2s+, T2s+, 92s+, 82s+, 73s+, 62s+, 52s+, 42s+, 32s+, A9o+, A5o-A2o, KQo+, QJo+, J9o+, J5o-J2o, T2o+, 92o+, 64o+, 53o+, 43o+, 32o+`).  
-Over the raise: call 57%, jam 43%, fold 0% (jams `TT+, 88, A2s+, K3s+, QTs+, Q8s, J2s+, T2s+, 97s+, 84s+, A2o+, KJo-KTo, QTo+, J8o+, T8o+, 98o+, 87o+`).  
-Against a jam: calls **32.8%** (`22+, A2s+, K4s+, Q8s+, J9s+, T9s+, A2o+, K7o+, QTo+, JTo+`).
+Over the raise: call 60%, jam 40% (jams `88+, A2s+, K2s+, QTs+, J7s+, T7s+, 98s+, 86s+, A2o+, K2o+, QTo+, JTo+, J8o, T8o`).  
+Against a jam: calls **32.7%** (`22+, A2s+, K4s+, Q8s+, J9s+, T9s+, A2o+, K8o+, QTo+, JTo+`).
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Limp | Raise 3 | Jam |
 |---|---|---|---|---|
-| AA | limp 99% | +9,634 | +9,196 | +8,000 |
-| KK | limp 100% | +8,709 | +8,124 | +6,790 |
-| QQ | limp 100% | +8,125 | +7,325 | +6,046 |
-| TT | limp 100% | +6,059 | +5,477 | +4,911 |
-| 88 | limp 99% | +3,887 | +3,532 | +3,711 |
-| AKs | jam 100% | +3,810 | +3,852 | +5,166 |
-| AKo | jam 100% | +3,217 | +3,328 | +4,915 |
-| AQo | jam 100% | +2,918 | +2,917 | +4,388 |
-| A5o | jam 100% | +639 | +300 | +1,857 |
-| K9o | jam 100% | +370 | +77 | +1,073 |
-| Q7o | limp 99% | +54 | -1,688 | -337 |
-| J4s | limp 91% / fold 9% | +17 | -1,940 | -194 |
+| AA | limp 100% | +9,634 | +9,081 | +7,996 |
+| KK | limp 100% | +8,727 | +7,768 | +6,782 |
+| QQ | limp 100% | +8,121 | +6,847 | +6,029 |
+| TT | limp 100% | +6,067 | +5,152 | +4,893 |
+| 88 | limp 100% | +3,898 | +3,384 | +3,713 |
+| AKs | jam 100% | +3,795 | +3,967 | +5,169 |
+| AKo | jam 100% | +3,192 | +3,491 | +4,920 |
+| AQo | jam 100% | +2,893 | +2,858 | +4,382 |
+| A5o | jam 100% | +610 | +244 | +1,877 |
+| K9o | jam 100% | +398 | -151 | +1,080 |
+| Q7o | limp 98% | +53 | -1,328 | -325 |
+| J4s | limp 90% / fold 10% | +11 | -1,659 | -173 |
 
 ### S2. 8 left: SB 10 bb vs BB 10.25 bb
 
@@ -248,31 +248,31 @@ Stacks: UTG 32, UTG1 26, LJ 22, HJ 19, CO 16, BTN 13, SB 10, BB 10.25
 
 | Small blind | % of hands | Range |
 |---|---|---|
-| Jam | 70.7% | `AA, 22-77, A2s+, K2s+, Q2s+, JTs+, J8s-J2s, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q6o+, J8o+, T6o+, 95o+, 85o+, 74o+, 64o+, 53o+` |
-| Limp | 19.2% | `88-KK, J9s, Q5o-Q2o, J7o-J2o, T5o-T2o, 94o-93o, 84o` |
+| Jam | 70.7% | `AA, 22-77, A2s+, K2s+, Q2s+, JTs+, J7s-J2s, T2s+, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A2o+, K2o+, Q6o+, J8o+, T6o+, 95o+, 85o+, 74o+, 64o+, 53o+` |
+| Limp | 19.4% | `88-KK, J9s-J8s, Q5o-Q2o, J7o-J2o, T5o-T2o, 94o-93o, 84o` |
 | Raise 3 | 0.1% | `(none)` |
-| Fold | 9.9% | |
+| Fold | 9.8% | |
 
-Big blind over a limp: check 58%, jam 42% (raises `(none)`; jams `TT+, A8s+, A2s, K6s+, K2s, QJs+, JTs+, T3s-T2s, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A8o+, K8o+, JTo+, 97o+, 93o-92o, 87o+, 83o-82o, 65o+, 63o-62o, 52o+, 42o+, 32o+`).  
-Over the raise: call 81%, jam 19%, fold 0% (jams `88+, A8s+, K8s+, Q9s+, A8o+, K9o+, Q9o+`).  
-Against a jam: calls **36.1%** (`33+, A2s+, K3s+, Q7s+, J8s+, T8s+, A2o+, K6o+, Q9o+, JTo+`).
+Big blind over a limp: check 59%, jam 41% (raises `(none)`; jams `JJ+, A7s+, A2s, K7s+, K2s, QJs+, JTs+, T9s+, T3s-T2s, 92s+, 82s+, 72s+, 62s+, 52s+, 42s+, 32s+, A8o+, K8o+, JTo+, 98o+, 95o, 93o-92o, 85o+, 82o, 65o+, 52o+, 42o+, 32o+`).  
+Over the raise: call 80%, jam 20% (jams `88+, A7s+, K8s+, Q9s+, A8o+, K8o+, Q9o+`).  
+Against a jam: calls **36.0%** (`33+, A2s+, K3s+, Q7s+, J8s+, T8s+, A2o+, K6o+, Q9o+, JTo+`).
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Limp | Raise 3 | Jam |
 |---|---|---|---|---|
-| AA | jam 98% | +14,022 | +12,704 | +14,333 |
-| KK | limp 90% / jam 9% | +12,611 | +11,347 | +12,554 |
-| QQ | limp 100% | +11,807 | +10,118 | +11,352 |
-| TT | limp 99% | +10,215 | +8,005 | +9,548 |
-| 88 | limp 61% / jam 39% | +7,669 | +5,638 | +7,657 |
-| AKs | jam 100% | +7,333 | +6,692 | +9,891 |
-| AKo | jam 100% | +6,637 | +6,116 | +9,490 |
-| AQo | jam 100% | +5,936 | +5,543 | +8,675 |
-| A5o | jam 100% | +3,337 | +2,351 | +4,787 |
-| K9o | jam 100% | +2,953 | +2,097 | +3,931 |
-| Q7o | jam 87% / limp 12% | +1,168 | +922 | +1,188 |
-| J4s | jam 100% | +994 | +48 | +1,357 |
+| AA | jam 98% | +13,956 | +12,902 | +14,334 |
+| KK | limp 83% / jam 17% | +12,569 | +11,466 | +12,544 |
+| QQ | limp 100% | +11,727 | +10,198 | +11,316 |
+| TT | limp 100% | +10,161 | +8,099 | +9,531 |
+| 88 | limp 53% / jam 47% | +7,642 | +5,691 | +7,654 |
+| AKs | jam 100% | +7,287 | +6,766 | +9,891 |
+| AKo | jam 100% | +6,629 | +6,207 | +9,496 |
+| AQo | jam 100% | +5,923 | +5,592 | +8,667 |
+| A5o | jam 100% | +3,345 | +2,335 | +4,818 |
+| K9o | jam 100% | +2,962 | +1,955 | +3,942 |
+| Q7o | jam 79% / limp 19% | +1,168 | +806 | +1,180 |
+| J4s | jam 100% | +961 | -76 | +1,346 |
 
 ### S3. 4 left: SB 11 bb vs BB 20 bb
 
@@ -280,31 +280,31 @@ Stacks: CO 30, BTN 25, SB 11, BB 20
 
 | Small blind | % of hands | Range |
 |---|---|---|
-| Jam | 52.4% | `22-99, A2s+, KTs-K2s, Q8s+, Q5s-Q2s, J6s-J3s, T3s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K3o+, Q9o+, J9o+, T8o+, 97o+, 86o+, 75o+, 65o+` |
-| Limp | 27.3% | `TT-KK, KJs+, Q7s-Q6s, J7s+, J2s, T2s, 92s, K2o, Q8o-Q2o, J8o-J2o, T7o-T3o, 96o` |
+| Jam | 51.5% | `22-99, A2s+, KTs-K7s, K5s-K2s, Q8s+, Q6s-Q2s, J6s-J3s, T3s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, KJo-K3o, Q9o+, JTo+, T9o+, 97o+, 86o+, 75o+, 65o+` |
+| Limp | 27.9% | `TT+, KJs+, K6s, Q7s, J7s+, J2s, T2s, 92s, KQo+, K2o, Q8o-Q2o, J9o-J2o, T8o-T3o, 96o` |
 | Raise 3 | 0.1% | `(none)` |
-| Fold | 20.3% | |
+| Fold | 20.6% | |
 
-Big blind over a limp: check 50%, raise to 4 49%, jam 2% (raises `77+, A2s+, K2s+, Q8s+, JTs+, 82s, 72s, 62s, A2o+, K7o+, QTo+, T2o, 95o-92o, 85o-82o, 74o-72o, 64o-62o, 53o-52o, 42o+, 32o+`; jams `22-33`).  
-Over the raise: call 76%, jam 24%, fold 0% (jams `99+, 22-55, A2s+, K9s+, K4s-K2s, JTs+, T9s+, 54s+, A2o+, K9o+, JTo+`).  
-Against a jam: calls **35.4%** (`22+, A2s+, K4s+, Q7s+, J8s+, T8s+, A2o+, K7o+, Q9o+, JTo+`).
+Big blind over a limp: check 50%, raise to 4 48%, jam 2% (raises `77+, A2s+, K2s+, Q8s+, JTs+, 72s, 62s, A2o+, K7o+, QTo+, 95o-92o, 85o-82o, 74o-72o, 63o-62o, 53o-52o, 42o+, 32o+`; jams `22-33`).  
+Over the raise: call 71%, jam 29% (jams `99+, 22-66, A2s+, K9s+, K5s-K2s, JTs+, T9s+, T7s, 96s+, 75s+, 64s+, 52s+, 42s+, A9o+, A7o-A2o, K9o+, JTo+`).  
+Against a jam: calls **35.4%** (`22+, A2s+, K4s+, Q8s+, J8s+, T8s+, A2o+, K6o+, Q9o+, JTo+`).
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Limp | Raise 3 | Jam |
 |---|---|---|---|---|
-| AA | limp 50% / jam 49% | +13,338 | +12,069 | +13,329 |
-| KK | limp 65% / jam 35% | +11,667 | +10,599 | +11,639 |
-| QQ | limp 100% | +10,607 | +9,736 | +10,516 |
-| TT | limp 100% | +8,845 | +7,806 | +8,755 |
-| 88 | jam 97% | +6,865 | +5,790 | +6,905 |
-| AKs | jam 100% | +8,850 | +6,435 | +8,913 |
-| AKo | jam 100% | +8,433 | +5,884 | +8,515 |
-| AQo | jam 100% | +7,671 | +5,231 | +7,769 |
-| A5o | jam 92% / limp 8% | +3,913 | +1,776 | +3,937 |
-| K9o | jam 100% | +2,865 | +1,468 | +3,019 |
-| Q7o | limp 99% | +821 | +275 | +507 |
-| J4s | jam 98% | +676 | -288 | +716 |
+| AA | limp 57% / jam 43% | +13,345 | +12,609 | +13,342 |
+| KK | limp 71% / jam 29% | +11,654 | +11,113 | +11,632 |
+| QQ | limp 100% | +10,568 | +10,197 | +10,489 |
+| TT | limp 100% | +8,821 | +8,261 | +8,741 |
+| 88 | jam 98% | +6,844 | +6,185 | +6,906 |
+| AKs | jam 99% | +8,848 | +6,488 | +8,924 |
+| AKo | jam 100% | +8,438 | +5,896 | +8,529 |
+| AQo | jam 100% | +7,657 | +5,209 | +7,752 |
+| A5o | jam 92% / limp 8% | +3,910 | +1,869 | +3,964 |
+| K9o | jam 100% | +2,863 | +1,072 | +3,038 |
+| Q7o | limp 100% | +830 | -142 | +477 |
+| J4s | jam 97% | +646 | -667 | +705 |
 
 ### S4. 3 left: SB 10 bb vs BB 15 bb
 
@@ -312,31 +312,31 @@ Stacks: BTN 20, SB 10, BB 15
 
 | Small blind | % of hands | Range |
 |---|---|---|
-| Jam | 59.0% | `22-99, A2s+, K2s+, Q7s+, Q4s-Q2s, J9s+, J3s-J2s, T2s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q7o+, J8o+, T7o+, 96o+, 86o+, 76o+, 65o+` |
-| Limp | 18.4% | `TT+, Q6s-Q5s, J8s-J4s, Q6o-Q2o, J7o-J2o, T6o-T4o` |
+| Jam | 58.8% | `22-99, A2s+, K2s+, Q7s+, Q4s-Q2s, J9s+, J4s-J2s, T2s+, 93s+, 84s+, 73s+, 63s+, 52s+, 43s+, A2o+, K2o+, Q7o+, J8o+, T7o+, 96o+, 86o+, 76o+, 65o+` |
+| Limp | 18.6% | `TT+, Q6s-Q5s, J8s-J5s, Q6o-Q2o, J7o-J2o, T6o-T4o` |
 | Raise 3 | 0.0% | `(none)` |
 | Fold | 22.6% | |
 
-Big blind over a limp: check 46%, raise to 4 45%, jam 8% (raises `88+, A2s+, K3s+, Q7s+, JTs+, 82s, 72s, A5o+, K6o+, Q9o+, JTo+, T2o, 95o-92o, 85o-82o, 74o-72o, 63o-62o, 53o-52o, 42o, 32o+`; jams `K2s, Q2s, J9s, T9s+, 97s+, 86s+, 76s+, 54s+, A4o-A2o, K3o-K2o`).  
-Over the raise: call 67%, jam 33%, fold 0% (jams `22+, A2s+, K2s+, Q9s+, J9s+, A2o+, K7o+, QTo+, JTo+`).  
-Against a jam: calls **40.1%** (`22+, A2s+, K2s+, Q6s+, J8s+, T8s+, A2o+, K5o+, Q8o+, J9o+, T9o+`).
+Big blind over a limp: check 46%, raise to 4 46%, jam 7% (raises `88+, A2s+, K3s+, Q7s+, J9s+, 83s-82s, 72s, A4o+, K6o+, QTo+, Q8o, JTo+, T2o, 95o-92o, 85o-82o, 74o-72o, 63o-62o, 53o-52o, 42o, 32o+`; jams `K2s, Q2s, T9s+, 97s+, 86s+, 76s+, 54s+, A3o-A2o, K3o-K2o`).  
+Over the raise: call 68%, jam 32% (jams `22+, A2s+, K2s+, Q9s+, JTs+, A2o+, K8o+, Q9o+`).  
+Against a jam: calls **40.0%** (`22+, A2s+, K2s+, Q6s+, J8s+, T8s+, A2o+, K5o+, Q8o+, J9o+, T9o+`).
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Limp | Raise 3 | Jam |
 |---|---|---|---|---|
-| AA | limp 87% / jam 13% | +16,233 | +15,505 | +16,154 |
-| KK | limp 63% / jam 37% | +14,211 | +13,653 | +14,189 |
-| QQ | limp 100% | +12,935 | +12,417 | +12,814 |
-| TT | limp 100% | +10,819 | +10,016 | +10,713 |
-| 88 | jam 98% | +8,268 | +7,454 | +8,453 |
-| AKs | jam 100% | +10,688 | +8,144 | +10,761 |
-| AKo | jam 100% | +10,170 | +7,450 | +10,296 |
-| AQo | jam 100% | +9,271 | +6,687 | +9,403 |
-| A5o | jam 97% | +5,103 | +2,410 | +5,127 |
-| K9o | jam 100% | +4,140 | +1,629 | +4,372 |
-| Q7o | jam 91% / limp 8% | +847 | -253 | +878 |
-| J4s | limp 68% / jam 32% | +905 | -1,028 | +919 |
+| AA | limp 80% / jam 20% | +16,221 | +15,301 | +16,154 |
+| KK | limp 58% / jam 42% | +14,202 | +13,519 | +14,189 |
+| QQ | limp 100% | +12,872 | +12,170 | +12,789 |
+| TT | limp 100% | +10,803 | +9,953 | +10,694 |
+| 88 | jam 98% | +8,252 | +7,386 | +8,438 |
+| AKs | jam 100% | +10,723 | +8,046 | +10,774 |
+| AKo | jam 100% | +10,210 | +7,373 | +10,297 |
+| AQo | jam 100% | +9,318 | +6,637 | +9,391 |
+| A5o | jam 100% | +5,145 | +2,399 | +5,156 |
+| K9o | jam 100% | +4,195 | +1,630 | +4,389 |
+| Q7o | jam 71% / limp 29% | +849 | -108 | +873 |
+| J4s | jam 56% / limp 44% | +894 | -950 | +902 |
 
 ### S5. Heads-up: 11 bb each
 
@@ -344,31 +344,31 @@ Stacks: SB 11, BB 11
 
 | Small blind | % of hands | Range |
 |---|---|---|
-| Jam | 68.2% | `QQ+, 22-99, A2s+, K2s+, Q2s+, J6s+, J4s-J2s, T2s+, 93s+, 84s+, 74s+, 63s+, 53s+, 43s+, A2o+, K2o+, Q2o+, J6o+, T7o+, 96o+, 86o+, 76o+, 65o+` |
-| Limp | 6.9% | `TT-JJ, J5s, J5o-J2o, T6o` |
+| Jam | 68.3% | `QQ+, 22-99, A2s+, K2s+, Q2s+, J2s+, T2s+, 93s+, 84s+, 74s+, 63s+, 53s+, 43s+, A2o+, K2o+, Q2o+, J6o+, T7o+, 96o+, 86o+, 76o+, 65o+` |
+| Limp | 6.9% | `TT-JJ, J5o-J2o, T6o-T5o` |
 | Raise 3 | 0.0% | `(none)` |
-| Fold | 24.8% | |
+| Fold | 24.7% | |
 
-Big blind over a limp: raise to 4 54%, check 36%, jam 10% (raises `77+, A2s+, K2s+, Q2s+, J7s+, T8s+, A4o+, K4o+, Q4o+, J8o+, T9o+, 95o-92o, 83o-82o, 73o-72o, 63o-62o, 52o, 42o, 32o+`; jams `T7s, 97s+, 86s+, 76s+, A3o-A2o, K2o`).  
-Over the raise: call 75%, jam 25%, fold 0% (jams `22+, A2s+, K9s+, QJs+, A2o+, KTo+`).  
-Against a jam: calls **53.5%** (`22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 97s+, 87s+, A2o+, K2o+, Q4o+, J7o+, T8o+`).
+Big blind over a limp: raise to 4 53%, check 38%, jam 9% (raises `77+, A2s+, K2s+, Q2s+, J7s+, T7s+, A2o+, K4o+, Q5o+, J8o+, T9o+, T2o, 95o-92o, 84o-82o, 73o-72o, 63o-62o, 52o, 42o, 32o+`; jams `97s+, 86s+, 76s+, K2o`).  
+Over the raise: call 75%, jam 25% (jams `22+, A2s+, K9s+, QJs+, A2o+, KTo+`).  
+Against a jam: calls **53.4%** (`22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 97s+, 87s+, A2o+, K2o+, Q4o+, J7o+, T8o+`).
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Limp | Raise 3 | Jam |
 |---|---|---|---|---|
-| AA | jam 77% / limp 23% | +20,653 | +14,819 | +20,658 |
-| KK | jam 76% / limp 24% | +18,511 | +13,552 | +18,516 |
-| QQ | jam 96% | +16,661 | +12,661 | +16,708 |
-| TT | limp 51% / jam 49% | +14,048 | +10,689 | +14,034 |
-| 88 | jam 99% | +11,192 | +8,568 | +11,377 |
-| AKs | jam 100% | +13,360 | +8,568 | +13,446 |
-| AKo | jam 100% | +12,706 | +7,945 | +12,835 |
-| AQo | jam 100% | +11,898 | +7,350 | +11,989 |
-| A5o | jam 100% | +7,284 | +3,528 | +7,319 |
-| K9o | jam 100% | +6,702 | +2,741 | +6,843 |
-| Q7o | jam 100% | +2,589 | +994 | +2,659 |
-| J4s | jam 73% / limp 27% | +1,390 | +550 | +1,395 |
+| AA | jam 82% / limp 18% | +20,531 | +14,839 | +20,634 |
+| KK | jam 79% / limp 21% | +18,395 | +13,572 | +18,502 |
+| QQ | jam 89% / limp 11% | +16,544 | +12,634 | +16,702 |
+| TT | limp 60% / jam 40% | +14,003 | +10,683 | +14,041 |
+| 88 | jam 100% | +11,131 | +8,556 | +11,358 |
+| AKs | jam 100% | +13,217 | +8,559 | +13,462 |
+| AKo | jam 100% | +12,540 | +7,952 | +12,812 |
+| AQo | jam 100% | +11,752 | +7,340 | +11,977 |
+| A5o | jam 97% | +7,132 | +3,532 | +7,308 |
+| K9o | jam 100% | +6,602 | +2,758 | +6,870 |
+| Q7o | jam 100% | +2,424 | +956 | +2,628 |
+| J4s | jam 87% / limp 13% | +1,312 | +536 | +1,413 |
 
 ## A short player first in: the min-raise trap
 
@@ -380,33 +380,33 @@ Stacks: UTG 10, UTG1 32, LJ 26, HJ 22, CO 19, BTN 16, SB 13, BB 11
 
 | First in | % of hands | Range |
 |---|---|---|
-| Raise 2 | 10.0% | `88+, AJs+, A9s-A8s, AQo-A9o, KJo+` |
-| Jam | 2.3% | `ATs, KTs+, QJs+, AKo+` |
+| Raise 2 | 9.9% | `88+, AJs+, A9s-A8s, AQo-A9o, KJo+` |
+| Jam | 2.3% | `ATs, KTs+, QTs+, AKo+` |
 
-- **UTG1** (32 bb) against the raise: re-jams 17.6%; calls a jam 7.8%
-- **LJ** (26 bb) against the raise: re-jams 13.8%; calls a jam 7.1%
-- **HJ** (22 bb) against the raise: re-jams 11.8%; calls a jam 6.5%
+- **UTG1** (32 bb) against the raise: re-jams 17.5%; calls a jam 7.9%
+- **LJ** (26 bb) against the raise: re-jams 13.6%; calls a jam 7.0%
+- **HJ** (22 bb) against the raise: re-jams 11.4%; calls a jam 6.3%
 - **CO** (19 bb) against the raise: re-jams 9.7%; calls a jam 6.1%
-- **BTN** (16 bb) against the raise: re-jams 7.7%; calls a jam 5.9%
-- **SB** (13 bb) against the raise: re-jams 9.6%; calls a jam 6.0%
-- **BB** (11 bb) against the raise: re-jams 3.6%, calls 48.0%, 3-bets 0.8%; calls a jam 6.3%
+- **BTN** (16 bb) against the raise: re-jams 7.5%; calls a jam 6.0%
+- **SB** (13 bb) against the raise: re-jams 9.5%; calls a jam 6.1%
+- **BB** (11 bb) against the raise: re-jams 3.5%, calls 49.0%, 3-bets 0.0%; calls a jam 6.2%
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Raise 2 | Jam |
 |---|---|---|---|
-| AA | raise 2 100% | +17,095 | +13,804 |
-| KK | raise 2 100% | +13,562 | +10,716 |
-| QQ | raise 2 100% | +10,319 | +8,299 |
-| JJ | raise 2 100% | +7,304 | +6,028 |
-| TT | raise 2 100% | +5,062 | +4,398 |
-| AKs | raise 2 100% | +5,740 | +5,468 |
-| AKo | jam 65% / raise 2 35% | +4,754 | +4,767 |
-| AQo | raise 2 84% / jam 16% | +2,330 | +2,286 |
-| KJo | raise 2 55% / fold 45% | +47 | -639 |
-| A5o | fold 98% | -357 | -1,810 |
-| 55 | fold 99% | -712 | -1,095 |
-| 98s | fold 100% | -1,069 | -1,369 |
+| AA | raise 2 100% | +17,088 | +13,794 |
+| KK | raise 2 100% | +13,536 | +10,716 |
+| QQ | raise 2 100% | +10,277 | +8,284 |
+| JJ | raise 2 100% | +7,372 | +6,081 |
+| TT | raise 2 100% | +4,975 | +4,367 |
+| AKs | raise 2 100% | +5,705 | +5,468 |
+| AKo | jam 75% / raise 2 25% | +4,729 | +4,799 |
+| AQo | raise 2 89% / jam 11% | +2,226 | +2,163 |
+| KJo | raise 2 56% / fold 44% | +56 | -621 |
+| A5o | fold 98% | -333 | -1,834 |
+| 55 | fold 100% | -698 | -1,074 |
+| 98s | fold 100% | -1,061 | -1,415 |
 
 ### M2. 4 left: CO 11 bb first in
 
@@ -414,29 +414,29 @@ Stacks: CO 11, BTN 20, SB 15, BB 30
 
 | First in | % of hands | Range |
 |---|---|---|
-| Raise 2 | 9.1% | `99+, ATs+, KQs+, A8o-A6o, KJo-KTo` |
-| Jam | 15.3% | `22-88, A9s-A2s, KJs-K9s, Q9s+, J9s+, T9s+, 98s+, A9o+, KQo+, QJo+` |
+| Raise 2 | 9.0% | `99+, ATs+, KQs+, A8o-A6o, KJo-KTo` |
+| Jam | 15.3% | `33-88, A9s-A2s, KJs-K9s, Q9s+, J9s+, T9s+, A9o+, KQo+, QJo+` |
 
-- **BTN** (20 bb) against the raise: re-jams 17.6%; calls a jam 10.2%
-- **SB** (15 bb) against the raise: re-jams 19.1%; calls a jam 10.7%
-- **BB** (30 bb) against the raise: re-jams 20.3%, calls 46.3%, 3-bets 0.2%; calls a jam 15.7%
+- **BTN** (20 bb) against the raise: re-jams 17.6%; calls a jam 10.1%
+- **SB** (15 bb) against the raise: re-jams 18.6%; calls a jam 10.4%
+- **BB** (30 bb) against the raise: re-jams 20.0%, calls 46.0%, 3-bets 0.0%; calls a jam 15.7%
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Raise 2 | Jam |
 |---|---|---|---|
-| AA | raise 2 98% | +15,498 | +12,197 |
-| KK | raise 2 98% | +12,716 | +9,915 |
-| QQ | raise 2 99% | +10,446 | +8,582 |
-| JJ | raise 2 99% | +8,184 | +7,209 |
-| TT | raise 2 100% | +6,536 | +6,112 |
-| AKs | raise 2 98% | +6,707 | +6,449 |
-| AKo | jam 70% / raise 2 30% | +5,938 | +5,937 |
-| AQo | jam 97% | +4,570 | +4,636 |
-| KJo | raise 2 69% / jam 30% | +329 | +291 |
-| A5o | fold 59% / raise 2 41% | +3 | -281 |
-| 55 | jam 98% | +745 | +1,319 |
-| 98s | jam 63% / fold 37% | -767 | +37 |
+| AA | raise 2 100% | +15,535 | +12,181 |
+| KK | raise 2 100% | +12,742 | +9,920 |
+| QQ | raise 2 100% | +10,424 | +8,558 |
+| JJ | raise 2 100% | +8,240 | +7,242 |
+| TT | raise 2 100% | +6,424 | +6,044 |
+| AKs | raise 2 100% | +6,719 | +6,404 |
+| AKo | jam 66% / raise 2 34% | +5,914 | +5,917 |
+| AQo | jam 97% | +4,519 | +4,559 |
+| KJo | raise 2 53% / jam 47% | +348 | +345 |
+| A5o | fold 56% / raise 2 44% | -5 | -219 |
+| 55 | jam 100% | +672 | +1,324 |
+| 98s | fold 60% / jam 40% | -746 | +26 |
 
 ### M3. 6 left: HJ 9 bb first in
 
@@ -444,30 +444,30 @@ Stacks: LJ 25, HJ 9, CO 30, BTN 8, SB 22, BB 18
 
 | First in | % of hands | Range |
 |---|---|---|
-| Raise 2 | 7.2% | `TT+, ATs+, A8s, A8o-A7o, KJo` |
-| Jam | 14.3% | `33-99, A9s, A7s-A3s, K9s+, Q9s+, J9s+, T9s+, A9o+, KQo+, QJo+` |
+| Raise 2 | 7.1% | `TT+, A8s+, A8o-A7o` |
+| Jam | 14.5% | `33-99, A7s-A3s, K9s+, Q9s+, J9s+, T9s+, A9o+, KQo+, QJo+` |
 
-- **CO** (30 bb) against the raise: re-jams 18.6%; calls a jam 11.9%
-- **BTN** (8 bb) against the raise: re-jams 14.6%; calls a jam 9.9%
-- **SB** (22 bb) against the raise: re-jams 21.9%; calls a jam 12.8%
-- **BB** (18 bb) against the raise: re-jams 9.2%, calls 43.9%, 3-bets 0.0%; calls a jam 13.2%
+- **CO** (30 bb) against the raise: re-jams 18.2%; calls a jam 12.1%
+- **BTN** (8 bb) against the raise: re-jams 13.8%; calls a jam 9.9%
+- **SB** (22 bb) against the raise: re-jams 20.9%; calls a jam 12.9%
+- **BB** (18 bb) against the raise: re-jams 8.4%, calls 44.4%, 3-bets 0.0%; calls a jam 13.2%
 
 Each option's value compared with folding (ICM, $):
 
 | Hand | The trainer plays it | Raise 2 | Jam |
 |---|---|---|---|
-| AA | raise 2 99% | +16,602 | +14,359 |
-| KK | raise 2 98% | +13,370 | +11,554 |
-| QQ | raise 2 99% | +11,026 | +9,948 |
-| JJ | raise 2 98% | +8,744 | +8,301 |
-| TT | raise 2 97% | +7,083 | +7,022 |
-| AKs | raise 2 98% | +7,587 | +7,487 |
-| AKo | jam 98% | +6,808 | +6,885 |
-| AQo | jam 99% | +5,213 | +5,378 |
-| KJo | raise 2 69% / jam 29% | +174 | +139 |
-| A5o | fold 84% / raise 2 16% | -3 | -481 |
-| 55 | jam 99% | +1,070 | +1,420 |
-| 98s | fold 100% | -967 | -88 |
+| AA | raise 2 100% | +16,642 | +14,413 |
+| KK | raise 2 100% | +13,392 | +11,607 |
+| QQ | raise 2 100% | +10,997 | +9,981 |
+| JJ | raise 2 100% | +8,833 | +8,390 |
+| TT | raise 2 91% / jam 9% | +6,996 | +6,999 |
+| AKs | raise 2 98% | +7,587 | +7,422 |
+| AKo | jam 96% | +6,782 | +6,841 |
+| AQo | jam 99% | +5,136 | +5,267 |
+| KJo | jam 50% / raise 2 49% | +196 | +139 |
+| A5o | fold 78% / raise 2 22% | -9 | -492 |
+| 55 | jam 100% | +1,021 | +1,455 |
+| 98s | fold 100% | -956 | -167 |
 
 ## What can differ, and why
 
