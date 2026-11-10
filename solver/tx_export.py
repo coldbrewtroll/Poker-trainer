@@ -49,9 +49,10 @@ def expand(range_text, board):
 
 
 def spot_parts(spot):
-    kind, rest = spot.split("_", 1)
-    opener, other = rest.split("_vs_")
-    return kind, opener, other
+    """(kind, opener, other) the trainer's way (flop_sims.roles: in 3-bet pots the name
+    starts with the 3-bettor, 3BP_BB_vs_BTN = the BTN opens and the BB 3-bets)."""
+    from flop_sims import roles
+    return roles(spot)
 
 
 def convert(raw_json, cfg_txt, depth, spot):
