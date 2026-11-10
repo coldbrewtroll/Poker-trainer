@@ -206,6 +206,9 @@ class Postflop8Mixin:
     # bluffs. solve_lookup(s) -> a flop_sims.Mapped or None (set by the trainer).
     flop_solve = 0
     solve_lookup = None
+    donk_cap = 0.10      # out of position to the preflop raiser in a solved spot: lead at most
+    #                      this share of the range (the solver's leads scaled down, its own
+    #                      choice of which hands lead kept; the rest check)
     range_engine = 0
     re_value = 0.58      # value bet when this far ahead of the calling range (river 0.55)
     re_margin = 0.02     # calling: equity over the price by this much
@@ -704,6 +707,25 @@ class Postflop8Mixin:
             return None
         if sim is None:
             return None
+        if self.donk_cap < 1.0 and self._donk_spot(s):
+            node = sim.node_for(s, s.big_blind)
+            mine = sim.mix(node, list(s.hole)) if node else None
+            if node and mine:
+                lead_all = getattr(sim, "_lead_share", {}).get(node)
+                if lead_all is None:
+                    rm = sim.range_mix(node, set())
+                    lead_all = sum(f for a, f in rm.items() if a.startswith("b"))
+                    if not hasattr(sim, "_lead_share"):
+                        sim._lead_share = {}
+                    sim._lead_share[node] = lead_all
+                k = min(1.0, self.donk_cap / lead_all) if lead_all > 0 else 1.0
+                bets = {a: f * k for a, f in mine.items() if a.startswith("b")}
+                r = self.rng.random()
+                for code, f in bets.items():
+                    r -= f
+                    if r < 0:
+                        return sim.move(s, code, s.big_blind)
+                return ("check", 0)
         mv = sim.pick(s, s.big_blind, self.rng)
         if mv is None:
             return None
