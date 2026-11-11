@@ -37,6 +37,8 @@ def pack(d):
     """A solve made small for the phone: frequencies and range weights as one byte each
     (0-250, x4 = per mille), base64; the standard hand order as "std"."""
     import base64
+    if d.get("packed"):
+        return d
     def enc(row):
         return base64.b64encode(bytes(min(250, max(0, round(v / 4))) for v in row)).decode()
     out = dict(d)
