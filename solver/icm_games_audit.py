@@ -366,8 +366,11 @@ def run(args):
                                                              args.picks)
             # (only decisions the others' play actually leads to: elsewhere the solve's
             # values are against an average range nobody plays to)
+            # (and only hands that play their way there themselves: after a limp the solve
+            # never makes, say, the values are a what-if)
             R = reaches(g)
-            r["sims"] = [x for x in sims if R.get(x["node"], (1.0, None))[0] >= LIVE]
+            r["sims"] = [x for x in sims if R.get(x["node"], (1.0, None))[0] >= LIVE
+                         and (R.get(x["node"], (1.0, None))[1] or {}).get(x["hand"], 1.0) >= LIVE]
             r["secs"] = round(time.time() - t0, 1)
             out.write(json.dumps(r) + "\n")
             out.flush()
