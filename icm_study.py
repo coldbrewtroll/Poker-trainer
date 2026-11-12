@@ -944,13 +944,9 @@ def _clean(nodes, value, stacks):
                             {**{a: 0.0 for a in m}, best: 1.0})
 
 
-def solve_sb(stacks, value, iters=GAME_ITERS, linear=True):
-    """The small blind first in against the big blind (everyone else folded). stacks: bb in
-    position order, the big blind last (with its ante). Returns the strategies and values
-    at every decision of the game ("nodes": {node: {"mix": {hand: {action: freq}}, "ev":
-    {hand: {action: value}}}}) plus ranges for the all-in calls, or None when it doesn't
-    apply (too short to limp)."""
-    names, idx, E, W = exact()
+def _sb_setup(stacks, value):
+    """The SB vs BB game's stakes: (s, b, can_raise, can_iso, can_3b, eff, vs, vb) with each
+    end's value for the small blind (vs) and the big blind (vb), or None (too short)."""
     n = len(stacks)
     s, b = n - 2, n - 1
     ante = [0.0] * n
@@ -987,6 +983,44 @@ def solve_sb(stacks, value, iters=GAME_ITERS, linear=True):
     V = {k: value(v, [s, b]) for k, v in st.items()}
     vs = {k: v[s] for k, v in V.items()}
     vb = {k: v[b] for k, v in V.items()}
+    return s, b, can_raise, can_iso, can_3b, eff, vs, vb
+
+
+# The games (solve_sb, solve_open) are solved exactly (icm_cfr: CFR+) when numpy is there;
+# without it, by fictitious play (quicker, but a line few hands reach, a 4-bet, a jam after
+# a limp, can be off by 1-2% of the prize pool).
+EXACT_GAMES = True
+
+
+def _exact_games():
+    if not EXACT_GAMES:
+        return None
+    try:
+        import icm_cfr
+    except Exception:
+        return None
+    return icm_cfr if icm_cfr.available() else None
+
+
+def solve_sb(stacks, value, iters=None, linear=True, exact=None):
+    C = _exact_games() if exact is not False else None
+    if C is not None:
+        mult = max(1, (iters or GAME_ITERS) // GAME_ITERS)
+        return C.solve_sb(stacks, value, C.SB_ROUNDS * mult)
+    return _solve_sb_fp(stacks, value, iters or GAME_ITERS, linear)
+
+
+def _solve_sb_fp(stacks, value, iters=GAME_ITERS, linear=True):
+    """The small blind first in against the big blind (everyone else folded). stacks: bb in
+    position order, the big blind last (with its ante). Returns the strategies and values
+    at every decision of the game ("nodes": {node: {"mix": {hand: {action: freq}}, "ev":
+    {hand: {action: value}}}}) plus ranges for the all-in calls, or None when it doesn't
+    apply (too short to limp)."""
+    names, idx, E, W = exact()
+    setup = _sb_setup(stacks, value)
+    if setup is None:
+        return None
+    s, b, can_raise, can_iso, can_3b, eff, vs, vb = setup
     nh = len(names)
     R, RC_ = OOP_REALIZE, CALLER_REALIZE
     from bots.preflop8 import TOP
@@ -1256,16 +1290,9 @@ THREE_BET_TO = 5.0       # a small 3-bet over the min-raise (bb)
 THREE_BET_MIN_BB = 10.0  # from this effective stack (bb)
 
 
-def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
-    """A short player first in (not a blind; everyone before folded): fold, raise to 2 bb or
-    jam. Everyone behind, in turn, answers the raise by folding, calling (a trap: the pot
-    goes to the flop), 3-betting to 5 bb or jamming, and a jam by calling or folding. The
-    opener answers a 3-bet by folding, calling or jamming (and the 3-bettor then calls or
-    folds), a jam by calling or folding. The first player to put chips in ends it (the rest
-    fold: no squeezes or overcalls). Returns {"nodes": {"open", "open_vs_3bet",
-    "open_vs_rejam:i" (the answer to responder i's re-jam), "open_vs_rejam" (all re-jams
-    together), "vs_open:i", "vs_4bet:i", "vs_jam:i"}, "ranges": ...} or None."""
-    names, idx, E, W = exact()
+def _open_setup(stacks, value, opener):
+    """The short first-in game's stakes, or None: {"o", "b", "resp", "V" (per responder:
+    each end's values for everyone), "v_steal", "v_fold", "can3", "oop_blind"}."""
     n = len(stacks)
     o = opener
     if not 0 <= o < n - 2:
@@ -1280,8 +1307,6 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
         return None
     resp = list(range(o + 1, n))
     after = [x - y - z for x, y, z in zip(stacks, blind, ante)]
-    nh = len(names)
-    OR, CR = OOP_REALIZE, CALLER_REALIZE
 
     def pot(contrib, winner):
         """Stacks after a pot (everyone's chips in, the blinds and the ante included) that
@@ -1317,6 +1342,35 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
                 "c3w": val(pot({o: THREE_BET_TO, i: THREE_BET_TO}, o)),   # the 3-bet called
                 "c3l": val(pot({o: THREE_BET_TO, i: THREE_BET_TO}, i))}
     oop_blind = {i: i >= sbi for i in resp}          # (the blinds act first after the flop)
+    return {"o": o, "b": b, "resp": resp, "V": V, "v_steal": v_steal, "v_fold": v_fold,
+            "can3": can3, "oop_blind": oop_blind}
+
+
+def solve_open(stacks, value, opener, iters=None, linear=True, exact=None):
+    C = _exact_games() if exact is not False else None
+    if C is not None:
+        mult = max(1, (iters or OPEN_ITERS) // OPEN_ITERS)
+        return C.solve_open(stacks, value, opener, C.OPEN_ROUNDS * mult)
+    return _solve_open_fp(stacks, value, opener, iters or OPEN_ITERS, linear)
+
+
+def _solve_open_fp(stacks, value, opener, iters=OPEN_ITERS, linear=True):
+    """A short player first in (not a blind; everyone before folded): fold, raise to 2 bb or
+    jam. Everyone behind, in turn, answers the raise by folding, calling (a trap: the pot
+    goes to the flop), 3-betting to 5 bb or jamming, and a jam by calling or folding. The
+    opener answers a 3-bet by folding, calling or jamming (and the 3-bettor then calls or
+    folds), a jam by calling or folding. The first player to put chips in ends it (the rest
+    fold: no squeezes or overcalls). Returns {"nodes": {"open", "open_vs_3bet",
+    "open_vs_rejam:i" (the answer to responder i's re-jam), "open_vs_rejam" (all re-jams
+    together), "vs_open:i", "vs_4bet:i", "vs_jam:i"}, "ranges": ...} or None."""
+    names, idx, E, W = exact()
+    S = _open_setup(stacks, value, opener)
+    if S is None:
+        return None
+    o, b, resp, V = S["o"], S["b"], S["resp"], S["V"]
+    v_steal, v_fold, can3, oop_blind = S["v_steal"], S["v_fold"], S["can3"], S["oop_blind"]
+    nh = len(names)
+    OR, CR = OOP_REALIZE, CALLER_REALIZE
     from bots.preflop8 import TOP
     top = lambda share: [1.0 if TOP[names[j]] <= share else 0.0 for j in range(nh)]  # noqa
     # the opener's plans: open, answering a 3-bet r3 (f/c/j) (OP), and within the open range

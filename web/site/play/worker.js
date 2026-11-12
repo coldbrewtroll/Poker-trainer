@@ -5,10 +5,20 @@ importScripts("pyodide/pyodide.js");
 let handle = null;
 let py = null;
 const CHARTS = "/home/pyodide/my_charts";
+// (the numpy build for this Pyodide version, from the Pyodide project's CDN; the service
+// worker keeps a copy, so it loads once)
+const NUMPY_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.8/full/numpy-2.0.2-cp312-cp312-pyodide_2024_0_wasm32.whl";
 
 async function boot() {
   postMessage({ type: "progress", text: "Starting the poker engine…" });
   py = await loadPyodide({ indexURL: new URL("pyodide/", self.location).href });
+  // numpy runs the exact ICM game solves (icm_cfr); without it (offline on the first visit,
+  // or a slow network) the engine solves those games the quicker, rougher way
+  postMessage({ type: "progress", text: "Loading the ICM solver…" });
+  try {
+    await Promise.race([py.loadPackage(NUMPY_URL),
+      new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 25000))]);
+  } catch (e) { /* fictitious-play solves */ }
   postMessage({ type: "progress", text: "Loading your ranges and the bots…" });
   const buf = await (await fetch("app.zip")).arrayBuffer();
   py.unpackArchive(buf, "zip", { extractDir: "/home/pyodide/app" });

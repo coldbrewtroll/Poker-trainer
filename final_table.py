@@ -972,6 +972,11 @@ def game_info(spot):
             out.append((f"{pos[o]}'s raise", [
                 f"It raises {sh(rg['open']):.0f}% of hands here; against a re-jam it " +
                 L(_range_mix(game, f"open_vs_rejam:{me}", rg["open"])) + "."]))
+    if not game.get("exact"):
+        out.append(("Solve", [
+            "Solved the quick way (fictitious play): rare lines here (a 4-bet, a jam after "
+            "a limp) can be off by 1-2% of the prize pool. Install numpy for the exact solve: "
+            "py -3.13 -m pip install numpy"]))
     return out
 
 

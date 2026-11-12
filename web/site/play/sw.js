@@ -8,6 +8,8 @@ const APP = ["./", "index.html", "app.css", "app.js", "worker.js", "app.zip", "m
 const PYODIDE = ["pyodide/pyodide.js", "pyodide/pyodide.asm.js", "pyodide/pyodide.asm.wasm",
   "pyodide/python_stdlib.zip", "pyodide/pyodide-lock.json"];
 const lasting = (url) => /\/(pyodide|avatars)\//.test(url);
+// (numpy, from the Pyodide CDN: kept with the engine)
+const NUMPY = (url) => url.startsWith("https://cdn.jsdelivr.net/pyodide/");
 
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {
@@ -28,7 +30,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
-    if (res.ok && new URL(e.request.url).origin === location.origin) {
+    if (res.ok && (new URL(e.request.url).origin === location.origin || NUMPY(e.request.url))) {
       const copy = res.clone();
       caches.open(lasting(e.request.url) ? ENGINE : VERSION).then((c) => c.put(e.request, copy));
     }

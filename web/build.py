@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT / "web" / "py"))
 PY_FILES = [
     "bots/__init__.py", "bots/contender.py", "bots/contender8.py", "bots/lines.py",
     "bots/lines8.py", "bots/opponent.py", "bots/opponent8.py", "bots/postflop.py",
-    "bots/postflop8.py", "solve_spot.py", "bots/preflop8.py", "bots/preflop_data.py", "bots/pushfold_table.py",
+    "bots/postflop8.py", "solve_spot.py", "icm_cfr.py", "bots/preflop8.py", "bots/preflop_data.py", "bots/pushfold_table.py",
     "bots/rangeplay.py", "bots/ranges.py", "bots/shortstack.py", "bots/starter.py", "cards.py", "engine.py",
     "engine8.py", "final_table.py", "flop_sims.py", "icm_study.py", "match.py", "match8.py",
     "solver/__init__.py", "solver/equity.py", "solver/import_ranges.py",

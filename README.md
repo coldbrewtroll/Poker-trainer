@@ -94,6 +94,12 @@ the answer changes against players who call or jam wider or tighter than the equ
 or bet shows a profit against how often the others fold. **Leaks** keeps your biggest
 blunders per session and across sessions.
 
+The small blind vs big blind game and the short opener's game (limps, small raises, 3-bets,
+4-bets and jams) are solved exactly (CFR+, `icm_cfr.py`): every line, even one few hands
+reach, to within about 0.1% of the prize pool, in about a second. That needs numpy, once:
+`py -3.13 -m pip install numpy`. Without it they're solved the quick way (fictitious play),
+and the coach says so. (The phone app loads numpy on its first start.)
+
 **ICM study** (the **ICM** button in the top bar; for your own tournament study, since the
 contest itself is chip EV): set each stack and the payouts (presets: final table, bubble,
 3-handed, heads-up, or type your own), see every player's prize equity against their share
