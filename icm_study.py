@@ -204,7 +204,9 @@ def call_from(res, hero):
             # the share of hands in the jam range the equities are worked out against
             # (the solve's average range), so "jams 12%" and "60% more hands" mean it
             "jam_share": _share_w(res["jam_range"]), "need": sp.need(hero), "spot": sp,
-            "jam_range": res["jam_range"], "hero": hero, "jam_gain": res["gain"]}
+            "jam_range": res["jam_range"], "hero": hero, "jam_gain": res["gain"],
+            # (the hero's own calling range from the solve: how often it calls each hand)
+            "call_range": res["call_ranges"].get(hero)}
 
 
 def fmt_bb(v):
@@ -1261,7 +1263,8 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
     opener answers a 3-bet by folding, calling or jamming (and the 3-bettor then calls or
     folds), a jam by calling or folding. The first player to put chips in ends it (the rest
     fold: no squeezes or overcalls). Returns {"nodes": {"open", "open_vs_3bet",
-    "open_vs_rejam", "vs_open:i", "vs_4bet:i", "vs_jam:i"}, "ranges": ...} or None."""
+    "open_vs_rejam:i" (the answer to responder i's re-jam), "open_vs_rejam" (all re-jams
+    together), "vs_open:i", "vs_4bet:i", "vs_jam:i"}, "ranges": ...} or None."""
     names, idx, E, W = exact()
     n = len(stacks)
     o = opener
@@ -1316,8 +1319,11 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
     oop_blind = {i: i >= sbi for i in resp}          # (the blinds act first after the flop)
     from bots.preflop8 import TOP
     top = lambda share: [1.0 if TOP[names[j]] <= share else 0.0 for j in range(nh)]  # noqa
-    # the opener's plans: open (answering a 3-bet r3: f/c/j, a re-jam rj: c/f), jam
-    OP = {(r3, rj): _Avg(nh) for r3 in "fcj" for rj in "cf"}
+    # the opener's plans: open, answering a 3-bet r3 (f/c/j) (OP), and within the open range
+    # the hands that call each responder's re-jam (OPC: the answer depends on who jammed:
+    # their stack and range), jam
+    OP = {r3: _Avg(nh) for r3 in "fcj"}
+    OPC = {i: _Avg(nh) for i in resp}
     J = _Avg(nh)
     # each responder: call / 3-bet and call (Bc) or fold (Bf) the 4-bet / jam over the
     # raise; call the opener's jam (CJ)
@@ -1329,8 +1335,10 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
     # a realistic start (fictitious play keeps its early rounds in the average): the opener
     # raises about 10% and jams 5%; behind, flats about 8%, 3-bets 3%, jams 3%
     band = lambda lo, hi: [1.0 if lo < TOP[names[j]] <= hi else 0.0 for j in range(nh)]  # noqa
-    OP[("j", "c")].step(top(0.05), 1)
-    OP[("f", "f")].step(band(0.05, 0.10), 1)
+    OP["j"].step(top(0.05), 1)
+    OP["f"].step(band(0.05, 0.10), 1)
+    for i in resp:
+        OPC[i].step(top(0.05), 1)
     J.step(band(0.10, 0.15), 1)
     for i in resp:
         BC[i].step(top(0.03), 1)
@@ -1349,7 +1357,9 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
     o_steal, o_fold = v_steal[o], v_fold[o]
 
     def o_fast(h):
-        """(jam, base, 3-bet answers f/c/j, re-jam answers c/f) for the opener's hand h."""
+        """(jam, base, 3-bet answers f/c/j, the 3-bet's reach, re-jam answers by responder
+        [(call, fold, reach)]) for the opener's hand h: each answer's part of the open's value
+        (reach-weighted; divided by its reach, the value once facing that bet)."""
         ev, reach = 0.0, 1.0
         for (cj, rc, bc, bf, rj, oopb, aw, al, ofo, tfo, ccw, ccl, c3w, c3l) in RL:
             d = cj.den[h]
@@ -1359,7 +1369,8 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
                 ev += reach * pc * (eq * aw + (1 - eq) * al)
                 reach *= 1 - pc
         jam = ev + reach * o_steal
-        base = t3f = t3c = t3j = tjc = tjf = 0.0
+        base = t3f = t3c = t3j = p3 = 0.0
+        tjs = []
         reach = 1.0
         for (cj, rc, bc, bf, rj, oopb, aw, al, ofo, tfo, ccw, ccl, c3w, c3l) in RL:
             step = 0.0
@@ -1382,29 +1393,33 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
                 t3f += rp * ofo
                 t3c += rp * (share * c3w + (1 - share) * c3l)
                 t3j += rp * ((1 - pcall) * tfo + pcall * (eqc * aw + (1 - eqc) * al))
+                p3 += rp
                 step += p
             d = rj.den[h]
             if d > 1e-12:                         # re-jam
                 p = d / 1225.0
                 eq = rj.num[h] / d
                 rp = reach * p
-                tjc += rp * (eq * aw + (1 - eq) * al)
-                tjf += rp * ofo
+                tjs.append((rp * (eq * aw + (1 - eq) * al), rp * ofo, rp))
                 step += p
+            else:
+                tjs.append((0.0, 0.0, 0.0))
             reach *= max(0.0, 1 - step)
         base += reach * o_steal
-        return jam, base, t3f, t3c, t3j, tjc, tjf
+        return jam, base, t3f, t3c, t3j, p3, tjs
 
     def o_vals(h):
-        """The opener's values for hand h: {"fold", "jam", "open"} and its best answers."""
-        jam, base, t3f, t3c, t3j, tjc, tjf = o_fast(h)
+        """The opener's values for hand h: {"fold", "jam", "open"}; at the 3-bet and at each
+        responder's re-jam, each answer's value once facing it (None: never faced)."""
+        jam, base, t3f, t3c, t3j, p3, tjs = o_fast(h)
         t3 = {"f": t3f, "c": t3c, "j": t3j}
-        tj = {"c": tjc, "f": tjf}
         r3 = max(t3, key=t3.get)
-        rj = max(tj, key=tj.get)
-        return ({"fold": o_fold, "jam": jam, "open": base + t3[r3] + tj[rj]},
-                {k: base + x + tj[rj] for k, x in t3.items()},
-                {k: base + t3[r3] + x for k, x in tj.items()}, r3, rj)
+        xj = sum(max(c, f) for c, f, _ in tjs)
+        ev3 = {k: x / p3 for k, x in t3.items()} if p3 > 1e-12 else None
+        evj = {i: ({"c": c / r, "f": f / r} if r > 1e-12 else None)
+               for i, (c, f, r) in zip(resp, tjs)}
+        return ({"fold": o_fold, "jam": jam, "open": base + t3[r3] + xj}, ev3, evj, r3,
+                [r for _, _, r in tjs])
 
     AGG = {}
 
@@ -1414,15 +1429,13 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
         for j in range(nh):
             tot = [0.0, 0.0]
             by3 = {r: [0.0, 0.0] for r in "fcj"}
-            byj = {r: [0.0, 0.0] for r in "cf"}
-            for (r3, rj), a in OP.items():
+            for r3, a in OP.items():
                 x, y = a.num[j], a.den[j]
                 tot[0] += x
                 tot[1] += y
                 by3[r3][0] += x
                 by3[r3][1] += y
-                byj[rj][0] += x
-                byj[rj][1] += y
+            byj = {i: (a.num[j], a.den[j]) for i, a in OPC.items()}   # (calls i's re-jam)
             AGG[j] = (tot, by3, byj)
 
     def o_ranges(j):
@@ -1441,8 +1454,8 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
             node = {"fold": v_steal[i]}
             if i == b:                            # (the big blind can call: it closes it)
                 node["call"] = share * v["ccl"][i] + (1 - share) * v["ccw"][i]
-            pc = byj["c"][1] / dO
-            eqc = _eqd(*byj["c"])
+            pc = byj[i][1] / dO
+            eqc = _eqd(*byj[i])
             node["jam"] = (1 - pc) * v["ofold"][i] + pc * (eqc * v["al"][i] + (1 - eqc) * v["aw"][i])
             four = None
             if can3[i]:
@@ -1463,22 +1476,28 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
         tw = (t + 1) / 2 if linear else t
         bo = {k: [0.0] * nh for k in OP}
         bj = [0.0] * nh
+        bcall = {i: [0.0] * nh for i in resp}
         for h in range(nh):
-            jam, base, t3f, t3c, t3j, tjc, tjf = o_fast(h)
+            jam, base, t3f, t3c, t3j, p3, tjs = o_fast(h)
             if t3f >= t3c and t3f >= t3j:
                 r3, x3 = "f", t3f
             elif t3c >= t3j:
                 r3, x3 = "c", t3c
             else:
                 r3, x3 = "j", t3j
-            rj, xj = ("c", tjc) if tjc > tjf else ("f", tjf)
+            xj = sum(max(c, f) for c, f, _ in tjs)
             opn = base + x3 + xj
             if opn > jam and opn > o_fold:
-                bo[(r3, rj)][h] = 1.0
+                bo[r3][h] = 1.0
+                for i, (c, f, _) in zip(resp, tjs):
+                    if c > f:
+                        bcall[i][h] = 1.0
             elif jam > o_fold:
                 bj[h] = 1.0
         for k, a in OP.items():
             a.step(bo[k], tw)
+        for i in resp:
+            OPC[i].step(bcall[i], tw)
         J.step(bj, tw)
         refresh_aggs()
         for i in resp:
@@ -1507,28 +1526,43 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
     refresh_aggs()
     nodes = {k: {"mix": {}, "ev": {}} for k in ("open", "open_vs_3bet", "open_vs_rejam")}
     for i in resp:
-        for k in ("vs_open", "vs_4bet", "vs_jam"):
+        for k in ("vs_open", "vs_4bet", "vs_jam", "open_vs_rejam"):
             nodes[f"{k}:{i}"] = {"mix": {}, "ev": {}}
+    A3 = {"f": "fold", "c": "call", "j": "jam"}
     for h in range(nh):
         hn = names[h]
-        v, ev3, evj, r3, rj = o_vals(h)
+        v, ev3, evj, r3, rjr = o_vals(h)
         opn = sum(a.avg[h] for a in OP.values())
         m = {"open": opn, "jam": J.avg[h]}
         m["fold"] = max(0.0, 1 - sum(m.values()))
         nodes["open"]["mix"][hn], nodes["open"]["ev"][hn] = m, v
-        if opn > 1e-9:
-            nodes["open_vs_3bet"]["mix"][hn] = _norm_mix(
-                {{"f": "fold", "c": "call", "j": "jam"}[x]: sum(OP[(x, y)].avg[h] for y in "cf")
-                 for x in "fcj"})
-            nodes["open_vs_rejam"]["mix"][hn] = _norm_mix(
-                {{"c": "call", "f": "fold"}[y]: sum(OP[(x, y)].avg[h] for x in "fcj") for y in "cf"})
-        else:
-            nodes["open_vs_3bet"]["mix"][hn] = {{"f": "fold", "c": "call", "j": "jam"}[r3]: 1.0}
-            nodes["open_vs_rejam"]["mix"][hn] = {{"c": "call", "f": "fold"}[rj]: 1.0}
-        # (the opener's values at those decisions, relative: what each answer adds)
-        nodes["open_vs_3bet"]["ev"][hn] = {{"f": "fold", "c": "call", "j": "jam"}[k]: x
-                                           for k, x in ev3.items()}
-        nodes["open_vs_rejam"]["ev"][hn] = {{"c": "call", "f": "fold"}[k]: x for k, x in evj.items()}
+        # (the answers' values: once facing the 3-bet / that player's re-jam, in dollars;
+        # a decision never reached gets every answer the same value)
+        nodes["open_vs_3bet"]["mix"][hn] = (
+            _norm_mix({A3[x]: OP[x].avg[h] for x in "fcj"}) if opn > 1e-9 else {A3[r3]: 1.0})
+        nodes["open_vs_3bet"]["ev"][hn] = ({A3[k]: x for k, x in ev3.items()} if ev3 else
+                                           {a: v["open"] for a in A3.values()})
+        agg_m, agg_v, agg_w = {"call": 0.0, "fold": 0.0}, {"call": 0.0, "fold": 0.0}, 0.0
+        for i, r in zip(resp, rjr):
+            e = evj[i]
+            if opn > 1e-9:
+                fc = min(1.0, OPC[i].avg[h] / opn)
+                mi = {"call": fc, "fold": 1 - fc}
+            else:
+                mi = {"call": 1.0, "fold": 0.0} if e and e["c"] > e["f"] else {"call": 0.0, "fold": 1.0}
+            ei = {"call": e["c"], "fold": e["f"]} if e else {"call": v["open"], "fold": v["open"]}
+            nodes[f"open_vs_rejam:{i}"]["mix"][hn] = mi
+            nodes[f"open_vs_rejam:{i}"]["ev"][hn] = ei
+            if e:
+                agg_w += r
+                for a in ("call", "fold"):
+                    agg_m[a] += r * mi[a]
+                    agg_v[a] += r * ei[a]
+        # (all re-jams together, weighted by how often each player is the one who jams)
+        nodes["open_vs_rejam"]["mix"][hn] = ({a: x / agg_w for a, x in agg_m.items()} if agg_w
+                                            else {"fold": 1.0})
+        nodes["open_vs_rejam"]["ev"][hn] = ({a: x / agg_w for a, x in agg_v.items()} if agg_w
+                                           else {"call": v["open"], "fold": v["open"]})
         for i in resp:
             w = r_vals(i, h)
             if w.get("vs_open"):
@@ -1551,8 +1585,9 @@ def solve_open(stacks, value, opener, iters=OPEN_ITERS, linear=True):
                 nodes[f"vs_jam:{i}"]["ev"][hn] = w["vs_jam"]
     _clean(nodes, value, stacks)
     ranges = {"open": [sum(a.avg[h] for a in OP.values()) for h in range(nh)],
+              "open_call": {i: list(OPC[i].avg) for i in resp},
               "jam": list(J.avg),
-              "fourbet": [sum(OP[("j", y)].avg[h] for y in "cf") for h in range(nh)],
+              "fourbet": list(OP["j"].avg),
               "rejam": {i: list(RJ[i].avg) for i in resp},
               "threebet": {i: [BC[i].avg[h] + BF[i].avg[h] for h in range(nh)] for i in resp},
               "flat": {i: list(RC[i].avg) for i in resp},

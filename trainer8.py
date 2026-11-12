@@ -2086,12 +2086,16 @@ class Trainer:
     def draw_sim_setup(self, x, y, x2):
         """Spots -> Flop sim: pick a solved spot, random or chosen flop, and your seat."""
         cv = self.cv
+        # solve any heads-up spot and flop here (TexasSolver), or browse the solves
+        self.button(x, y, x2 - x, 32, "\u2699  Solve a spot\u2026", C["accent"], self.open_solver,
+                    size=10, radius=7)
+        y += 42
         if not FLOP_SIMS:
             cv.create_text(x, y + 4, anchor="nw", width=x2 - x, fill=C["dim"], font=F(9),
-                           text="No flop solves yet. Solve flops in PioSOLVER (the ranges are in "
-                                "pio_ranges/), then run:\n  py -3.13 solver/pio_export.py "
-                                "\"D:\\PioSOLVER\\saves\"\nand restart the trainer.")
-            return y + 80
+                           text="No flop solves yet: solve one above (or in PioSOLVER: the "
+                                "ranges are in pio_ranges/, then run py -3.13 "
+                                "solver/pio_export.py on its saves).")
+            return y + 60
         groups = self.sim_groups()
         labels = [self.group_label(k) for k, _ in groups]
         key, sims = self.current_group()
@@ -2118,6 +2122,42 @@ class Trainer:
                             f"solve ({cur.depth:g} bb). The opponent plays the solve on the flop; "
                             f"from the turn on, the bots play.")
         return y + 48
+
+    def open_solver(self):
+        """Spots -> Flop sim -> Solve a spot: the solver window (solve_spot.py)."""
+        import solve_spot
+        win = getattr(self, "solver_win", None)
+        try:
+            if win is not None and win.top.winfo_exists():
+                win.top.lift()
+                return
+        except tk.TclError:
+            pass
+        self.solver_win = solve_spot.open_window(self.root, C, F, on_saved=self.solver_saved,
+                                                 play=self.play_solve)
+
+    def solver_saved(self, path):
+        """A new solve: the drill, the bots and your hints use it from now on."""
+        load_flop_sims()
+        _SOLVE_CACHE.clear()
+        self.hand_sim_key = None
+        self.draw()
+
+    def play_solve(self, d):
+        """The solver window's "Play this flop": Spots -> Flop sim on that solve."""
+        load_flop_sims()
+        key = (float(d["depth"]), d["kind"], d["opener"], d["other"])
+        for gi, (k, sims) in enumerate(self.sim_groups()):
+            if k == key:
+                fi = next((j for j, sm in enumerate(sims) if list(sm.board) == list(d["board"])), 0)
+                self.close_icm()
+                self.mode = "Spots"
+                self.panel_tab = "Setup"
+                self.spot.update(scen="Flop sim", simgroup=gi, simflop=fi, simpick="Choose")
+                self.restart_hand()
+                self.draw()
+                self.root.lift()
+                return
 
     def spot_cfg(self):
         sp = self.spot
@@ -4264,11 +4304,7 @@ class Trainer:
             if spot["kind"] == "mix":
                 self.toast = FTL.mix_verdict(spot, right, g)
             else:
-                go = "Jam" if spot["kind"] == "jam" else "Call"
-                best = go if g > 0 else "Fold"
-                self.toast = (f"ICM: {best} {spot['hand']}  \u00b7  " +
-                              (f"right ({money_k(abs(g))} better)" if right else
-                               f"wrong, that cost {money_k(abs(g))}"))
+                self.toast = FTL.allin_verdict(spot, right, g)
             # At a final table the ICM verdict is the grade for this decision: a fold the
             # coach calls best is never a "fish" fold, whatever the chip-EV sims prefer.
             node = self.caption_node or next(

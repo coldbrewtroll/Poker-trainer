@@ -463,9 +463,9 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
         if abs(z) > 5 and abs(m - a) > 0.002 * pool:
             rec["fail"].append({"sim": (h, a, m, se)})
 
-    # converge: 400 rounds
+    # converge: 2000 rounds (the trainer's solve: FT.solve, 120)
     if converge:
-        long = I.solve_jam(st, I.icm_value(list(pays)), who, iters=400,
+        long = I.solve_jam(st, I.icm_value(list(pays)), who, iters=2000, linear=True,
                            posts=list(kw["posts"]) if kw.get("posts") else None,
                            responders=list(kw["responders"]) if kw.get("responders") else None,
                            fold_to=kw.get("fold_to"),
@@ -479,6 +479,18 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
         rec["conv_flips"] = sum(w[h] for h in fl) / 1326
         rec["conv_flip_cost"] = max((abs(g400[h]) for h in fl), default=0.0)
         rec["conv_flip_hands"] = [NAMES[h] for h in fl][:6]
+        # the grade: what an answer it counts right loses by the long solve
+        close = FT.ALLIN_CLOSE * pool
+        share = res["jam_range"] if kind == "jam" else res["call_ranges"][me]
+        worst = 0.0
+        for h in range(169):
+            ok_go = app[h] > 0 or abs(app[h]) <= close or share[h] >= FT.ALLIN_MIX
+            ok_fold = app[h] <= 0 or abs(app[h]) <= close or share[h] <= 1 - FT.ALLIN_MIX
+            if ok_go:
+                worst = max(worst, -g400[h])
+            if ok_fold:
+                worst = max(worst, g400[h])
+        rec["grade_cost"] = worst
 
     # exploits (the coach's): recompute the scaled ranges and gains
     try:
@@ -513,7 +525,7 @@ def audit_spot(rng, spot, pays, out, deals, converge, label):
                     rec["fail"].append({"exploit": (label_, d)})
     except Exception as e:      # (recorded, not fatal)
         rec["fail"].append({"exploit_error": repr(e)})
-    if rec["fail"]:      # (everything needed to rebuild the spot)
+    if rec["fail"] or rec.get("grade_cost", 0) > 0.0003 * pool:   # (to rebuild the spot)
         rec["spot"] = {"stacks": list(st), "me": me, "who": who, "kind": kind, "pays": list(pays),
                        "kw": {k: (list(v) if isinstance(v, tuple) else
                                   {str(a): list(b) for a, b in v.items()} if isinstance(v, dict)
@@ -661,14 +673,16 @@ def read_check(s, sp, mv, pays):
                 probs.append(("posts", sp["kw"]["posts"], want_posts))
     else:
         want = "call over my open"
-    # the grade: right iff (gain > 0) == going
+    # the grade: right iff (gain > 0) == going, or it's a coin flip (FT.allin_close)
     spot = FT.coach_spot(s, FT.POLICY["table"])
     if spot["kind"] in ("jam", "call"):
         g_go = FT.grade(dict(spot), ("raise", s.max_raise_to) if spot["kind"] == "jam"
                         else ("call", 0), s)
         g_fold = FT.grade(dict(spot), ("fold", 0), s)
         if g_go and g_fold:
-            if g_go[0] == g_fold[0]:
+            solved = FT.ensure_solved(dict(spot))
+            both = g_go[0] and FT.allin_close(solved, "go") and FT.allin_close(solved, "fold")
+            if g_go[0] == g_fold[0] and not both:     # (a coin flip: both are right)
                 probs.append(("grade: going and folding graded the same", g_go, g_fold))
             if abs(g_go[1] - g_fold[1]) > 1e-9:
                 probs.append(("grade: dollars differ", g_go[1], g_fold[1]))
@@ -821,11 +835,17 @@ def summary(paths):
               f"the pool {100 * max(r['combo_flip_cost'] / r['pool'] for r in spots):.3f}%")
     conv = [r for r in spots if "conv_flips" in r]
     if conv:
-        print(f"40 vs 400 rounds ({len(conv)} spots): hands that change mean "
+        print(f"trainer's solve vs a long one ({len(conv)} spots): hands that change mean "
               f"{100 * statistics.fmean(r['conv_flips'] for r in conv):.3f}% of combos, worst "
               f"{100 * max(r['conv_flips'] for r in conv):.2f}%; worst value of a changed hand "
               f"${max(r['conv_flip_cost'] for r in conv):,.0f} "
               f"({100 * max(r['conv_flip_cost'] / r['pool'] for r in conv):.3f}% of the pool)")
+        gc = [r for r in conv if "grade_cost" in r]
+        if gc:
+            bad = [r for r in gc if r["grade_cost"] > 0.0003 * r["pool"]]
+            print(f"  the grade by the long solve: worst loss of an answer graded right "
+                  f"{100 * max(r['grade_cost'] / r['pool'] for r in gc):.4f}% of the pool; "
+                  f"over 0.03%: {len(bad)} of {len(gc)}")
     if sims:
         z = [(m - a) / se for h, a, m, se in sims if se > 0]
         print(f"simulation vs trainer: mean z {statistics.fmean(z):+.3f}, sd {statistics.pstdev(z):.3f} "

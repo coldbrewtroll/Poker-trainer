@@ -4,3 +4,7 @@ solver/mccfr_out/
 .ranges_cache.pickle
 sounds/
 leak_history.json
+
+# Solve a spot: the solver program (TexasSolver, AGPL: shipped separately) and its work files
+solver_bin/
+solver_runs/

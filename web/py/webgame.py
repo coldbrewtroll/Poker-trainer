@@ -244,9 +244,7 @@ class WebGame:
             if icm["kind"] == "mix":     # a game with traps: the solve's mix
                 out["icm"] = FT.mix_verdict(icm, right, g)
             else:
-                go = "Jam" if icm["kind"] == "jam" else "Call"
-                out["icm"] = (f"ICM: {go if g > 0 else 'Fold'} {icm['hand']} was best "
-                              f"({I.money_k(abs(g))})")
+                out["icm"] = FT.allin_verdict(icm, right, g)
             out["icm_right"] = bool(right)
         if same and graded is None:
             cap = T.CAPTIONS[0]

@@ -297,7 +297,54 @@ def grade(spot, move, s=None):
     ensure_solved(spot)
     spot["answer"] = act
     g = spot["res"]["gain"][spot["hand"]]
-    return (g > 0) == (act == "go"), g
+    return (g > 0) == (act == "go") or allin_close(spot, act), g
+
+
+# An all-in decision this close (a share of the prize pool) is a coin flip: either answer
+# is right, as at the game decisions. Within it are the solve's own rounding (a few more
+# rounds move such a hand by about this much) and the card removal between the players
+# behind, which the solve leaves out.
+ALLIN_CLOSE = 1e-4
+ALLIN_MIX = 0.10        # a hand the solve plays both ways at least this often: both are right
+
+
+def go_share(spot):
+    """How often the solve goes (jams / calls) with your hand, 0-1, or None."""
+    res, h = spot.get("res"), spot.get("hand")
+    if not res or h is None:
+        return None
+    k = I.exact()[1][h]
+    w = res.get("call_range") if spot["kind"] == "call" else res.get("jam_range")
+    return None if w is None else w[k]
+
+
+def allin_close(spot, act):
+    """True when `act` ("go" / "fold") is a coin flip from the best play: within
+    ALLIN_CLOSE of the pool, or a play the solve itself makes ALLIN_MIX of the time."""
+    g = spot["res"]["gain"][spot["hand"]]
+    if abs(g) <= ALLIN_CLOSE * sum(spot["pays"]):
+        return True
+    f = go_share(spot)
+    if f is None:
+        return False
+    return f >= ALLIN_MIX if act == "go" else f <= 1 - ALLIN_MIX
+
+
+def allin_verdict(spot, right, g):
+    """The grade's one-liner at a jam / call decision."""
+    go = "Jam" if spot["kind"] == "jam" else "Call"
+    best = go if g > 0 else "Fold"
+    mine = go if spot.get("answer") == "go" else "Fold"
+    if not right:
+        return f"ICM: {best} {spot['hand']}  \u00b7  wrong, that cost {I.money_k(abs(g))}"
+    if mine == best:
+        return f"ICM: {best} {spot['hand']}  \u00b7  right ({I.money_k(abs(g))} better)"
+    f = go_share(spot)
+    if abs(g) > ALLIN_CLOSE * sum(spot["pays"]) and f is not None:
+        why = f"the solve plays it both ways ({go.lower()} {100 * f:.0f}%)"
+    else:
+        why = f"{best} is only {I.money_k(abs(g))} better"
+    return f"ICM: {mine} {spot['hand']}  \u00b7  right, a coin flip: {why}"
 
 
 # ------------------------------------------------------------ the final table's preflop rules
@@ -924,7 +971,7 @@ def game_info(spot):
                                                    "jam or fold here.)")]))
             out.append((f"{pos[o]}'s raise", [
                 f"It raises {sh(rg['open']):.0f}% of hands here; against a re-jam it " +
-                L(_range_mix(game, "open_vs_rejam", rg["open"])) + "."]))
+                L(_range_mix(game, f"open_vs_rejam:{me}", rg["open"])) + "."]))
     return out
 
 
