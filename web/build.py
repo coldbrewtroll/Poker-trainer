@@ -33,6 +33,9 @@ PYODIDE_FILES = ["pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm", "python_std
                  "pyodide-lock.json"]
 
 
+PHONE_FLOPS = 60      # flop solves per spot in the phone app (the most common flops)
+
+
 def ranges_json():
     """The trainer's study table (your sims in my_ranges/ + the built-in tables) as JSON."""
     import tkstub
@@ -62,9 +65,21 @@ def main():
         for f in PY_FILES + DATA_FILES:
             z.write(ROOT / f, f)
         z.writestr("ranges.json", ranges_json())
-        # the flop solves (postflop/), packed small: the bots play them, read when used
+        # the flop solves (postflop/), packed small: the bots play them, read when used.
+        # (The phone gets the PHONE_FLOPS most common flops of each spot, so the download
+        # stays small; any other flop plays as the nearest of those, as on the PC.)
         import flop_sims
-        for f in sorted((ROOT / "postflop").glob("*/*.json")):
+        wt = {}
+        wfile = ROOT / "solver" / "flop_weights.json"
+        if wfile.exists():
+            wt = {x["board"]: x["weight"] for x in json.loads(wfile.read_text())}
+        keep = set()
+        for spot in sorted(p for p in (ROOT / "postflop").iterdir() if p.is_dir()):
+            files = sorted(spot.glob("*.json"))
+            if wt and len(files) > PHONE_FLOPS:
+                files = sorted(files, key=lambda f: -wt.get(f.stem, 0.0))[:PHONE_FLOPS]
+            keep.update(files)
+        for f in sorted(keep):
             d = json.loads(f.read_text())
             z.writestr(f"postflop/{f.parent.name}/{f.name}",
                        json.dumps(flop_sims.pack(d), separators=(",", ":")))
