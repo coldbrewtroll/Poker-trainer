@@ -1,0 +1,5 @@
+LP_SB_vs_BB at 40 bb: SB limps, BB checks
+Starting pot: 3.00 bb   Effective stack: 39.00 bb
+OOP: SB (84.1% of hands)   IP: BB (62.0% of hands)
+In PioSOLVER: paste OOP_SB.txt as the OOP range and IP_BB.txt as the IP range,
+set the pot to 3.00 and the effective stack to 39.00 (or x100 if you use chips).

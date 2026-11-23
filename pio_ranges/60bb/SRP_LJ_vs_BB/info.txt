@@ -1,5 +1,5 @@
-SRP_LJ_vs_BB at 60 bb: LJ opens 2.01, BB calls
-Starting pot: 5.53 bb   Effective stack: 57.98 bb
-OOP: BB (73.7% of hands)   IP: LJ (24.8% of hands)
+SRP_LJ_vs_BB at 60 bb: LJ opens 2.40, BB calls
+Starting pot: 6.30 bb   Effective stack: 57.60 bb
+OOP: BB (55.8% of hands)   IP: LJ (23.6% of hands)
 In PioSOLVER: paste OOP_BB.txt as the OOP range and IP_LJ.txt as the IP range,
-set the pot to 5.53 and the effective stack to 57.98 (or x100 if you use chips).
+set the pot to 6.30 and the effective stack to 57.60 (or x100 if you use chips).

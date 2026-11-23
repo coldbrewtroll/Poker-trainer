@@ -1,4 +1,6 @@
-"""Pio range files for heads-up postflop solves, from your 8-max Monker preflop sims.
+"""Pio range files for heads-up postflop solves, from your 8-max preflop ranges: your Monker
+sims (my_ranges/) and your study charts (study_ranges/: GTO Wizard, HRC), which win where
+both have a spot at a depth, as in the trainer.
 
 For each spot (a single-raised or 3-bet pot between two seats) and each depth you have a
 sim for, writes the two players' preflop ranges as Pio range text, plus the pot and
@@ -33,20 +35,30 @@ SPOTS += [("SRP_CO_vs_BTN", "CO", "BTN", "srp"), ("SRP_HJ_vs_CO", "HJ", "CO", "s
 SPOTS += [("3BP_BB_vs_BTN", "BTN", "BB", "3bp"), ("3BP_SB_vs_BTN", "BTN", "SB", "3bp"),
           ("3BP_BTN_vs_CO", "CO", "BTN", "3bp"), ("3BP_BB_vs_CO", "CO", "BB", "3bp"),
           ("3BP_BB_vs_SB", "SB", "BB", "3bp")]
+SPOTS += [("LP_SB_vs_BB", "SB", "BB", "lp")]     # the SB limps, the BB checks
 
 
 def raise_pct(acts):
-    """The (single) sized raise among a spot's actions: ('raise_29pct', 29.0)."""
-    for a in acts:
-        m = re.match(r"raise_([\d.]+)pct$", a)
+    """A spot's sized raise (not all-in): (action name, size, unit) with unit "pct" (Monker's
+    pot-% raise) or "bb" (raise to that many bb: GTO Wizard, HRC). With several sizes, the
+    one played most."""
+    best = None
+    for a, w in acts.items():
+        m = re.match(r"raise_([\d.]+)(pct|bb)$", a)
         if m:
-            return a, float(m.group(1))
-    return None, None
+            share = sum(v * (6 if len(h) == 2 else 4 if h[2] == "s" else 12) for h, v in w.items())
+            if best is None or share > best[0]:
+                best = (share, a, float(m.group(1)), m.group(2))
+    return (best[1], (best[2], best[3])) if best else (None, None)
 
 
-def raise_to(top, my_bet, pot, pct):
-    """Monker's pot-% raise: to = current bet + pct x (pot after calling)."""
-    return top + pct / 100 * (pot + top - my_bet)
+def raise_to(top, my_bet, pot, size):
+    """The raise's size in bb: Monker's pot-% raise (to = current bet + pct x (pot after
+    calling)), or a raise to so many bb."""
+    val, unit = size
+    if unit == "bb":
+        return val
+    return top + val / 100 * (pot + top - my_bet)
 
 
 def blind(pos):
@@ -60,6 +72,14 @@ def weights(acts, name):
 def build(table, opener, other, kind, depth):
     """(OOP pos, IP pos, {pos: {hand: weight}}, pot, effective stack, line) or None."""
     first = table.get(opener, {}).get(depth)
+    if kind == "lp":                     # the SB limps, the BB checks
+        vs = table.get(f"{other}_{opener}c", {}).get(depth)
+        if not first or not vs or "call" not in first or "call" not in vs:
+            return None
+        dead = ANTE
+        ranges = {opener: dict(first["call"]), other: dict(vs["call"])}
+        ranges = {p: {h: w for h, w in r.items() if w >= 0.001} for p, r in ranges.items()}
+        return opener, other, ranges, 2.0 + dead, depth - 1.0, f"{opener} limps, {other} checks"
     vs = table.get(f"{other}_{opener}r", {}).get(depth)
     if not first or not vs:
         return None
@@ -96,12 +116,22 @@ def pio_text(r):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--sims", default=str(ROOT / "my_ranges"))
+    ap.add_argument("--sims", default=f"{ROOT / 'my_ranges'},{ROOT / 'study_ranges'}",
+                    help="range folders, later ones win (default: my_ranges, study_ranges)")
     ap.add_argument("--out", default=str(ROOT / "pio_ranges"))
     ap.add_argument("--depths", help="comma-separated, default: every depth you have")
     args = ap.parse_args()
+    # each folder on its own, and all of them together (later folders win): a spot's two
+    # ranges come from one source when one has both (a GTO Wizard open against a Monker
+    # defence built for a different open would be a mismatch), else from the mix
+    tables, table = [], {}
     with contextlib.redirect_stdout(io.StringIO()):
-        table = load_folder(args.sims)
+        for folder in args.sims.split(","):
+            if Path(folder).is_dir():
+                t = load_folder(folder)
+                tables.append(t)
+                for spot, depths_ in t.items():
+                    table.setdefault(spot, {}).update(depths_)
     depths = sorted({d for spot in table.values() for d in spot if d > 0})
     if args.depths:
         want = {float(d) for d in args.depths.split(",")}
@@ -110,10 +140,17 @@ def main():
     print(f"{'spot':16s} {'bb':>4s} {'pot':>6s} {'stack':>6s}  OOP / IP ranges")
     for d in depths:
         for name, opener, other, kind in SPOTS:
-            res = build(table, opener, other, kind, d)
+            res = None
+            for t in reversed(tables):          # (the later folders first)
+                res = build(t, opener, other, kind, d)
+                if res:
+                    break
+            res = res or build(table, opener, other, kind, d)
             if not res:
                 continue
             oop, ip, ranges, pot, eff, line = res
+            if eff < 0.3 * pot:
+                continue  # (all in, or as good as, before the flop: nothing to solve)
             share = {p: sum(w * (6 if len(h) == 2 else 4 if h[2] == "s" else 12)
                             for h, w in r.items()) / 13.26 for p, r in ranges.items()}
             if min(share.values()) < 0.5:
