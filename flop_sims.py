@@ -349,6 +349,16 @@ def _rank(c):
     return RANKS.index(c[0])
 
 
+def _shape(board):
+    """What any two flops must share for one to stand in for the other: the rank pattern
+    (pairs) and the suit pattern, per card in rank order."""
+    rs = sorted((_rank(c), c[1]) for c in board)
+    ranks = tuple(sum(1 for r, _ in rs if r == x) for x, _ in rs)
+    first = {}
+    suits = tuple(first.setdefault(su, len(first)) for _, su in rs)
+    return ranks, len(first), suits if len(first) > 1 else ()
+
+
 def _board_map(real, solved):
     """(score, rank pairs, suit map) for laying the real flop onto a solved one, or None
     when the two don't have the same shape."""
@@ -545,8 +555,15 @@ def find(sims, kind, opener_pos, other_pos, board, pot_flop, eff_stack):
     if abs(math.log(max(sprs[depth], 1e-6) / max(spr, 1e-6))) > math.log(SPR_TOLERANCE):
         return None
     best = None
+    shape = (_shape(board)[0], _shape(board)[1])
     for x in group:
         if x.depth != depth:
+            continue
+        sh = x.__dict__.get("_shape")
+        if sh is None:
+            full = _shape(x.board)
+            sh = x.__dict__["_shape"] = (full[0], full[1])
+        if sh != shape:        # (a different shape can't stand in: skip the slow match)
             continue
         m = _board_map(board, x.board)
         if m and (best is None or m[0] < best[0]):

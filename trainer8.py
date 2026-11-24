@@ -1923,6 +1923,10 @@ def caption_for(node):
 
 class Trainer:
     def __init__(self, root, args):
+        # The bots think in a thread; Python hands the screen thread its turn every 5 ms by
+        # default, and a redraw makes hundreds of Tk calls, each waiting for that turn: the
+        # table froze for a second or two while a bot thought. Hand over far more often.
+        sys.setswitchinterval(0.00005)
         self.root, self.args, self.n = root, args, args.players
         self.events, self.replies = queue.Queue(), queue.Queue()
         self.mode = "Play"
@@ -3176,33 +3180,37 @@ class Trainer:
             cv.create_text(cx, TOP + STRIP + 26, text=self.spot_title(), fill=C["dim"],
                            font=F(10))
         # The board, broadcast style: the cards in a dark panel, the pot in a bar below.
-        px0, px1, py0 = cx - 146, cx + 146, cy - 40
-        self.rrect(px0 - 2, py0 + 3, px1 + 2, cy + 63, 10, fill="#04070c", outline="")
-        self.rrect(px0, py0, px1, cy + 58, 10, fill="#0b1a2e", outline="#1f3b5f", width=1)
+        # (compact: five 42 x 58 cards and a slim pot bar, so the bets and the grade
+        # below have room)
+        cw, ch, gap = 42, 58, 5
+        px0, px1 = cx - (5 * cw + 4 * gap) / 2 - 7, cx + (5 * cw + 4 * gap) / 2 + 7
+        py0, top_c = cy - 52, cy - 45
+        bar_y, bar_y1 = cy + 18, cy + 36
+        self.rrect(px0 - 2, py0 + 3, px1 + 2, bar_y1 + 4, 9, fill="#04070c", outline="")
+        self.rrect(px0, py0, px1, bar_y1, 9, fill="#0b1a2e", outline="#1f3b5f", width=1)
         now = time.time()
         self.note_board(now)
         for i in range(5):
-            x = cx - 138 + i * 56
-            self.rrect(x, cy - 34, x + 52, cy + 34, 6, fill="#0f2238", outline="#1d3a5c",
-                       width=1)
+            x = px0 + 7 + i * (cw + gap)
             if i < len(self.board):
-                self.draw_board_card(i, x, cy - 34, now, w=52, h=68)
-        bar_y = cy + 38
-        cv.create_rectangle(px0 + 1, bar_y, px1 - 1, cy + 57, fill="#123a63", outline="")
-        cv.create_rectangle(px0 + 1, bar_y, cx - 30, cy + 57, fill="#0e2d4d", outline="")
-        cv.create_text(px0 + 12, bar_y + 10, text="POT", fill="#9fd3ff", anchor="w",
-                       font=FH(10))
+                self.draw_board_card(i, x, top_c, now, w=cw, h=ch)
+            else:
+                self.rrect(x, top_c, x + cw, top_c + ch, 5, fill="#0f2238",
+                           outline="#1d3a5c", width=1)
+        cv.create_rectangle(px0 + 1, bar_y, px1 - 1, bar_y1 - 1, fill="#123a63", outline="")
+        cv.create_text(px0 + 10, (bar_y + bar_y1) / 2, text="POT", fill="#9fd3ff", anchor="w",
+                       font=FH(9))
         if self.pot or getattr(self, "pot_final", 0):
-            cv.create_text(px1 - 12, bar_y + 10, text=self.pot_text(), fill="white",
-                           anchor="e", font=FH(11))
+            cv.create_text(px1 - 10, (bar_y + bar_y1) / 2, text=self.pot_text(), fill="white",
+                           anchor="e", font=FH(10))
         if self.caption and (time.time() < self.caption_until or self.waiting_next or
                              self.autonext):
             text, col = self.caption
-            w = text_w(text, FH(14)) + 40
-            self.rrect(cx - w / 2, cy + 68, cx + w / 2, cy + 98, 15, fill=col, outline="")
-            cv.create_text(cx, cy + 83, text=text, fill="white", font=FH(14))
+            w = text_w(text, FH(11)) + 30
+            self.rrect(cx - w / 2, cy + 44, cx + w / 2, cy + 68, 12, fill=col, outline="")
+            cv.create_text(cx, cy + 56, text=text, fill="white", font=FH(11))
         if self.notice:
-            cv.create_text(cx, cy + 90, text=self.notice, fill=C["bad"], font=F(10, True),
+            cv.create_text(cx, cy + 80, text=self.notice, fill=C["bad"], font=F(10, True),
                            width=520)
         elif self.toast and not self.anim_on():
             w = min(text_w(self.toast, F(10)) + 28, TABLE_W - 360)
