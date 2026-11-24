@@ -190,6 +190,9 @@ table waits while you look back, so you come back to the same decision.
 **Study charts** (`study_ranges/`, not included here): put charts from your own study
 tools in that folder and the trainer uses them too (one file per spot and action, as in
 `my_ranges/`). The contest bot never reads them.
+HRC solves go in straight from HRC's saved hands: `py -3.13 solver/hrc_saves.py` reads
+every save in `~/HoldemResources/SavedHands` that fits a chart (equal stacks, chip EV, 1 bb
+of antes) and writes or updates their charts; run it again after new solves.
 In the browser version: **Settings → My charts** loads a zip of them on your phone only
 (kept in that browser, never uploaded).
 

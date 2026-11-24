@@ -8,3 +8,6 @@ leak_history.json
 # Solve a spot: the solver program (TexasSolver, AGPL: shipped separately) and its work files
 solver_bin/
 solver_runs/
+
+# Your study charts (GTO Wizard, HRC via solver/hrc_saves.py): kept on this PC only
+study_ranges/
