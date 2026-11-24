@@ -67,31 +67,41 @@ def table_of(settings):
     return n, depth, left, bb, bb_ante
 
 
-def is_allin(amount, left, bb):
-    return amount >= left - 0.01 * bb
+def cap(player, left, folded):
+    """The most `player` can usefully bet: their own stack, or the deepest stack still in the
+    hand if that's smaller (HRC caps an all-in there, e.g. the small blind's shove at the big
+    blind's stack once the big blind has paid a big blind ante)."""
+    others = [x for q, x in enumerate(left) if q != player and q not in folded]
+    return min(left[player], max(others)) if others else left[player]
+
+
+def is_allin(amount, most, bb):
+    return amount >= most - 0.01 * bb
 
 
 def spot_of(seq, actor, positions, left, bb):
     """The trainer's spot name for `actor` after the actions in `seq` (folds left out)."""
-    items, last_raise = [], -1
+    items, last_raise, folded = [], -1, set()
     for a in seq:
         if a["type"] == "R":
             last_raise = len(items)
-            allin = is_allin(a["amount"], left[a["player"]], bb)
+            allin = is_allin(a["amount"], cap(a["player"], left, folded), bb)
             items.append([positions[a["player"]], "a" if allin else "r"])
         elif a["type"] == "C":
             items.append([positions[a["player"]], "c"])
+        elif a["type"] == "F":
+            folded.add(a["player"])
     for k, it in enumerate(items):
         if it[1] == "a" and k != last_raise:
             it[1] = "r"     # only the latest raise can be an all-in in a spot name
     return "_".join([positions[actor]] + [p + c for p, c in items])
 
 
-def action_name(a, left, bb):
+def action_name(a, most, bb):
     if a["type"] in ("C", "X"):
         return "call"
     if a["type"] == "R":
-        if is_allin(a["amount"], left, bb):
+        if is_allin(a["amount"], most, bb):
             return "allin"
         return f"raise_{round(a['amount'] / bb * 20) / 20:g}bb"     # to 0.05 bb
     return None     # fold
@@ -117,8 +127,10 @@ def convert(zf, n, left, bb, min_combos=MIN_COMBOS):
         for key in [k for k in out if k[0] == spot]:
             del out[key]
         best[spot] = reach
+        folded = {a["player"] for a in nd["sequence"] if a["type"] == "F"}
+        most = cap(nd["player"], left, folded)
         for i, a in enumerate(nd["actions"]):
-            act = action_name(a, left[nd["player"]], bb)
+            act = action_name(a, most, bb)
             if act is None:
                 continue
             freqs = {h: v["played"][i] for h, v in hands.items() if v.get("weight", 0.0) > 1e-9}
